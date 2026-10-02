@@ -653,9 +653,29 @@ final class AppModel {
 
 // MARK: - Benchmark
 
+/// Spezzone nell'interfaccia: automatico (dall'analisi) o spostato a mano
+struct BenchSegment: Identifiable {
+    let id: Int
+    var start: Double
+    var duration: Double
+    var luma: Double?
+    var bitrate: Int64?
+    var note: String?
+    var image: NSImage?
+    var isManual = false
+}
+
 @MainActor @Observable
 final class BenchModel {
     var fileURL: URL?
+    var segments: [BenchSegment] = []
+    var segmentWarnings: [String] = []
+    var isAnalyzing = false
+    var analysisStep = ""
+    var analysisPercent = 0.0
+    var analysisError: String?
+    var fileDuration = 0.0
+    var segmentSeconds = 15.0
     var probe: ProbeResult?
     var probeError: String?
     var selected: Set<String> = ["1", "3"]
@@ -673,10 +693,17 @@ final class BenchModel {
     var errorMessage: String?
 
     @ObservationIgnored private var run: EngineRun?
+    @ObservationIgnored private var analysisRun: EngineRun?
+
+    var hasManualSegments: Bool { segments.contains(where: \.isManual) }
 
     func setFile(_ url: URL) async {
         guard !isRunning else { return }
+        analysisRun?.interrupt()
         fileURL = url
+        segments = []
+        segmentWarnings = []
+        analysisError = nil
         probe = nil
         probeError = nil
         results = []
@@ -690,8 +717,83 @@ final class BenchModel {
             // VMAF è un modello SDR: sull'HDR si parte da XPSNR
             if probe?.isHDR == true, metric == .vmaf { metric = .xpsnr }
             if probe?.isHDR == false, metric == .xpsnr { metric = .vmaf }
+            fileDuration = probe?.duration ?? 0
+            analyzeSegments()
         } catch {
             probeError = error.localizedDescription
+        }
+    }
+
+    // MARK: spezzoni
+
+    /// Analisi del motore (in cache per lo stesso file): ripristina anche gli spezzoni automatici
+    func analyzeSegments() {
+        guard let fileURL, !isAnalyzing else { return }
+        isAnalyzing = true
+        analysisError = nil
+        analysisStep = ""
+        analysisPercent = 0
+        let r = EngineRun(arguments: ["segments", fileURL.path])
+        analysisRun = r
+        do {
+            try r.start(onEvent: { [weak self] ev in self?.handleAnalysis(ev, for: fileURL) },
+                        onExit: { [weak self] code, err in
+                            guard let self, self.analysisRun === r else { return }
+                            self.isAnalyzing = false
+                            self.analysisRun = nil
+                            if code != 0 && code != 130 && self.analysisError == nil && self.segments.isEmpty {
+                                let msg = err.trimmingCharacters(in: .whitespacesAndNewlines)
+                                self.analysisError = msg.isEmpty ? "Analisi terminata con codice \(code)" : msg
+                            }
+                        })
+        } catch {
+            isAnalyzing = false
+            analysisError = error.localizedDescription
+        }
+    }
+
+    private func handleAnalysis(_ ev: EngineEvent, for url: URL) {
+        guard url == fileURL else { return }
+        switch ev.type {
+        case "step":
+            analysisStep = ev.step ?? ""
+            analysisPercent = 0
+        case "progress":
+            if let s = ev.step { analysisStep = s }
+            analysisPercent = ev.percent ?? 0
+        case "segments":
+            segmentSeconds = ev.segmentSeconds ?? segmentSeconds
+            if let d = ev.duration { fileDuration = d }
+            segmentWarnings = ev.warnings ?? []
+            segments = (ev.segments ?? []).enumerated().map { i, s in
+                BenchSegment(id: i, start: s.start, duration: s.duration, luma: s.luma, bitrate: s.bitrate,
+                             note: s.note, image: s.thumb.flatMap { NSImage(contentsOfFile: $0) })
+            }
+        case "error":
+            analysisError = ev.message
+        default:
+            break
+        }
+    }
+
+    /// Scelta manuale: nuovo inizio in secondi, miniatura rigenerata dal motore
+    func setStart(_ index: Int, to seconds: Double) {
+        guard let fileURL, segments.indices.contains(index) else { return }
+        let start = max(0, min(seconds, fileDuration - segmentSeconds))
+        segments[index].start = start
+        segments[index].duration = min(segmentSeconds, fileDuration - start)
+        segments[index].isManual = true
+        segments[index].luma = nil
+        segments[index].bitrate = nil
+        segments[index].note = nil
+        segments[index].image = nil
+        let id = segments[index].id
+        Task {
+            guard let data = try? await Engine.runJSON(["thumb", "--at", String(format: "%.3f", start), fileURL.path]),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let path = obj["thumb"] as? String,
+                  let i = segments.firstIndex(where: { $0.id == id }), segments[i].start == start else { return }
+            segments[i].image = NSImage(contentsOfFile: path)
         }
     }
 
@@ -705,8 +807,11 @@ final class BenchModel {
         percent = 0
         step = ""
         currentName = ""
-        let r = EngineRun(arguments: ["bench", "--presets", selected.sorted().joined(separator: ","),
-                                      "--metric", metric.rawValue, fileURL.path])
+        var args = ["bench", "--presets", selected.sorted().joined(separator: ","), "--metric", metric.rawValue]
+        if !segments.isEmpty {
+            args += ["--segments", segments.map { String(format: "%.3f", $0.start) }.joined(separator: ",")]
+        }
+        let r = EngineRun(arguments: args + [fileURL.path])
         run = r
         isRunning = true
         do {

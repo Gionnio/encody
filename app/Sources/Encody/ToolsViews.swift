@@ -36,6 +36,11 @@ struct BenchmarkView: View {
             }
             .disabled(bench.isRunning)
 
+            if bench.fileURL != nil && bench.probe != nil {
+                BenchSegmentsSection(bench: bench)
+                    .disabled(bench.isRunning)
+            }
+
             Section {
                 MetricPicker(metric: $bench.metric, choices: [.vmaf, .xpsnr, .cvvdp])
                 Text(bench.metric.info)
@@ -59,7 +64,7 @@ struct BenchmarkView: View {
                         Button("Stop", role: .destructive) { bench.stop() }
                     } else {
                         Button("Avvia benchmark") { bench.start() }
-                            .disabled(bench.fileURL == nil || bench.selected.isEmpty
+                            .disabled(bench.fileURL == nil || bench.selected.isEmpty || bench.isAnalyzing
                                       || bench.metric.unavailableReason(model.caps) != nil)
                             .keyboardShortcut("r")
                     }
@@ -85,8 +90,8 @@ struct BenchmarkView: View {
                 Text("Esecuzione")
             } footer: {
                 Text(bench.metric == .cvvdp
-                     ? "Spezzone di 45 s dal centro del film, solo video. ColorVideoVDP ne analizza 10 s. La dimensione è stimata sull'intera durata."
-                     : "Spezzone di 45 s dal centro del film, solo video. La dimensione è stimata sull'intera durata.")
+                     ? "Si codificano gli spezzoni scelti sopra, solo video. ColorVideoVDP ne analizza 8 s in tutto, divisi tra gli spezzoni. La dimensione è stimata sull'intera durata."
+                     : "Si codificano gli spezzoni scelti sopra, solo video. La dimensione è stimata sull'intera durata.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -103,6 +108,127 @@ struct BenchmarkView: View {
         var s = ""
         if !b.currentName.isEmpty { s += "[\(b.index)/\(b.total)] \(b.currentName) · " }
         return s + (b.step.isEmpty ? "Preparazione" : b.step)
+    }
+}
+
+// MARK: - Spezzoni
+
+private struct BenchSegmentsSection: View {
+    let bench: BenchModel
+
+    var body: some View {
+        Section {
+            if bench.isAnalyzing && bench.segments.isEmpty {
+                ProgressView(value: min(bench.analysisPercent, 100), total: 100) {
+                    Text(bench.analysisStep.isEmpty ? "Analisi del file" : bench.analysisStep)
+                } currentValueLabel: {
+                    Text(String(format: "%.0f%%", bench.analysisPercent)).monospacedDigit()
+                }
+            }
+            ForEach(bench.segments) { seg in
+                SegmentRow(bench: bench, segment: seg, zone: zoneLabel(seg.id))
+            }
+            ForEach(bench.segmentWarnings, id: \.self) { w in
+                Label(w, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if let e = bench.analysisError {
+                Label("Analisi non riuscita: si userà lo spezzone centrale. \(e)", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textSelection(.enabled)
+            }
+        } header: {
+            HStack {
+                Text("Spezzoni")
+                Spacer()
+                if bench.hasManualSegments {
+                    Button("Ripristina automatici") { bench.analyzeSegments() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                        .disabled(bench.isAnalyzing)
+                }
+            }
+        } footer: {
+            Text("Scelti analizzando bitrate e luminosità: niente neri, dissolvenze o scene troppo scure, complessità sopra la media. Sigla e titoli di coda esclusi. Puoi cambiare l'inizio di ogni spezzone a mano.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func zoneLabel(_ i: Int) -> String {
+        guard bench.segments.count == 3 else { return "Centro" }
+        return ["Inizio", "Centro", "Fine"][i]
+    }
+}
+
+private struct SegmentRow: View {
+    let bench: BenchModel
+    let segment: BenchSegment
+    let zone: String
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            thumbnail
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text(zone).font(.headline)
+                    if segment.isManual { Chip("manuale") }
+                }
+                HStack(spacing: 6) {
+                    Text("Inizio")
+                        .foregroundStyle(.secondary)
+                    TextField("m:ss", text: $text)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                        .monospacedDigit()
+                        .focused($focused)
+                        .onSubmit(commit)
+                        .help("Minuti:secondi (o ore:minuti:secondi). Invio per applicare.")
+                    Text("· \(Int(segment.duration.rounded())) s")
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    if let l = segment.luma { Chip("luminosità \(Int((l * 100).rounded()))%") }
+                    if let b = segment.bitrate, let s = Fmt.bitrate(b) { Chip(s) }
+                }
+                if let n = segment.note {
+                    Text(n).font(.caption).foregroundStyle(.orange)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .onAppear { text = Fmt.timestamp(segment.start) }
+        .onChange(of: segment.start) { _, v in if !focused { text = Fmt.timestamp(v) } }
+        .onChange(of: focused) { _, f in if !f { commit() } }
+    }
+
+    private var thumbnail: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+            if let img = segment.image {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                ProgressView().controlSize(.small)
+            }
+        }
+        .frame(width: 160, height: 90)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func commit() {
+        guard let t = Fmt.parseTimestamp(text) else {
+            text = Fmt.timestamp(segment.start) // non valido: si torna al valore di prima
+            return
+        }
+        if abs(t - segment.start) >= 1 { bench.setStart(segment.id, to: t) }
+        text = Fmt.timestamp(min(t, max(0, bench.fileDuration - bench.segmentSeconds)))
     }
 }
 

@@ -19,7 +19,7 @@
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
 - **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, Dock badge and notifications.
-- **Benchmark:** Encode a 45 s sample with several presets and compare quality vs. estimated size on a chart.
+- **Benchmark:** Encode three 15 s samples with several presets and compare quality vs. estimated size on a chart. Samples are picked automatically from the beginning, middle and end of the film by analyzing bitrate and brightness (no black frames, fades or overly dark scenes, intro and credits skipped), with thumbnails and manual override.
 - **Quality Check:** Compare any original with its encode using **VMAF**, **XPSNR**, **ColorVideoVDP** or **SSIM**.
 - **HDR Quality Metrics:** XPSNR (10-bit, built into FFmpeg) and ColorVideoVDP (perceptual model with a PQ/HLG display, GPU accelerated) instead of the SDR-only VMAF model.
 - **CLI Included:** The bundled `encody` engine also works from the Terminal (interactive menu or headless JSON commands).
@@ -78,7 +78,9 @@ The app contains no encoding logic: it runs the engine headless and reads its JS
 | `encody crop <file>` | `{"crop": "crop=…"}` |
 | `encody plan < queue.json` | per job: video description, audio plan, tonemap/inject constraints, warnings |
 | `encody run [--test] <queue.json>` | NDJSON: queue_start, job_start, step, progress, info, job_done, queue_done |
-| `encody bench --presets 1,3 [--metric auto\|vmaf\|xpsnr\|cvvdp] <file>` | NDJSON: bench_start, bench_preset_start, progress, bench_result, bench_done |
+| `encody segments <file>` | NDJSON: step, progress, segments (start, luma, bitrate, thumbnail); cached in `~/Library/Caches/Encody` |
+| `encody thumb --at T <file>` | `{"thumb": "…jpg"}` for a sample starting at T seconds |
+| `encody bench --presets 1,3 [--metric auto\|vmaf\|xpsnr\|cvvdp] [--segments t1,t2,t3] <file>` | NDJSON: bench_start, bench_preset_start, progress, bench_result, bench_done |
 | `encody quality --metric vmaf\|ssim\|xpsnr\|cvvdp --ref A --dist B` | NDJSON: step, progress, quality_result |
 
 Flags go before positional arguments. SIGINT stops cleanly (temporary and partial files removed). Without arguments the interactive CLI starts.

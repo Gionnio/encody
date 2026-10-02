@@ -1383,7 +1383,8 @@ func qualityVerdict(metric string, v float64) string {
 }
 
 // Misura la qualità del distorto rispetto al reference, con progress
-func measureQuality(ctx context.Context, ref, dist, metric string, on func(ProgressUpdate)) (QualityScore, error) {
+// cvvdpWindows (facoltative): tratti da confrontare con ColorVideoVDP; senza, gli 8 s centrali.
+func measureQuality(ctx context.Context, ref, dist, metric string, on func(ProgressUpdate), cvvdpWindows ...[2]float64) (QualityScore, error) {
 	if err := metricAvailable(metric); err != nil {
 		return QualityScore{}, err
 	}
@@ -1405,7 +1406,7 @@ func measureQuality(ctx context.Context, ref, dist, metric string, on func(Progr
 	defer releaseTmp(dir)
 
 	if metric == "cvvdp" {
-		return measureCVVDP(ctx, ref, dist, refInfo, distInfo, dir, on)
+		return measureCVVDP(ctx, ref, dist, refInfo, distInfo, dir, cvvdpWindows, on)
 	}
 
 	logPath := filepath.Join(dir, "log")
@@ -1515,21 +1516,40 @@ var tqdmRe = regexp.MustCompile(`(\d+)/(\d+) \[`)
 
 // ColorVideoVDP: estrae lo stesso spezzone dai due file (lossless, seek preciso al frame),
 // porta il distorto alla risoluzione del reference e lo confronta su GPU (MPS) se disponibile.
-func measureCVVDP(ctx context.Context, ref, dist string, refInfo, distInfo *MediaInfo, dir string, on func(ProgressUpdate)) (QualityScore, error) {
+func measureCVVDP(ctx context.Context, ref, dist string, refInfo, distInfo *MediaInfo, dir string, windows [][2]float64, on func(ProgressUpdate)) (QualityScore, error) {
 	dur := math.Min(refInfo.Duration, distInfo.Duration)
 	seconds := math.Min(CVVDPSeconds, dur)
 	start := 0.0
 	if dur > CVVDPSeconds*2 {
 		start = dur/2 - CVVDPSeconds/2
 	}
+	// Più finestre (spezzoni del benchmark): si decodifica tutto e si tengono solo quei tratti,
+	// con la stessa selezione per reference e distorto, quindi i frame restano allineati
+	selectExpr := ""
+	if len(windows) > 0 {
+		var terms []string
+		seconds = 0
+		for _, w := range windows {
+			terms = append(terms, fmt.Sprintf("between(t,%.3f,%.3f)", w[0], w[1]))
+			seconds += w[1] - w[0]
+		}
+		fps := refInfo.FPSStr
+		if fps == "" {
+			fps = "24"
+		}
+		selectExpr = fmt.Sprintf(",select='%s',setpts=N/(%s)/TB", strings.Join(terms, "+"), fps)
+	}
 	extract := func(src string, info *MediaInfo, out, step string, scale bool) error {
-		vf := "setpts=PTS-STARTPTS"
+		vf := "setpts=PTS-STARTPTS" + selectExpr
 		if scale && (info.Width != refInfo.Width || info.Height != refInfo.Height) {
 			vf = fmt.Sprintf("scale=%d:%d:flags=bicubic,", refInfo.Width, refInfo.Height) + vf
 		}
-		args := []string{"-y", "-ss", fmt.Sprintf("%.3f", start), "-i", src, "-t", fmt.Sprintf("%.3f", seconds),
-			"-map", fmt.Sprintf("0:%d", info.VideoIndex), "-an", "-sn", "-dn", "-vf", vf,
-			"-c:v", "ffv1", "-level", "3", "-slices", "16", "-pix_fmt", "yuv420p10le"}
+		args := []string{"-y", "-ss", fmt.Sprintf("%.3f", start), "-i", src, "-t", fmt.Sprintf("%.3f", seconds)}
+		if selectExpr != "" {
+			args = []string{"-y", "-i", src, "-fps_mode", "passthrough"}
+		}
+		args = append(args, "-map", fmt.Sprintf("0:%d", info.VideoIndex), "-an", "-sn", "-dn", "-vf", vf,
+			"-c:v", "ffv1", "-level", "3", "-slices", "16", "-pix_fmt", "yuv420p10le")
 		// tag colore del reference su entrambi: cvvdp legge da lì la curva di trasferimento
 		for k, v := range map[string]string{"-color_primaries": refInfo.ColorPrim, "-color_trc": refInfo.ColorTrc, "-colorspace": refInfo.ColorSpace} {
 			if v != "" && v != "unknown" {
@@ -1616,27 +1636,78 @@ func measureCVVDP(ctx context.Context, ref, dist string, refInfo, distInfo *Medi
 		return QualityScore{}, fmt.Errorf("ColorVideoVDP: risultato non trovato\n%s", tail(stdout.Bytes(), 10))
 	}
 	v, _ := strconv.ParseFloat(m[1], 64)
-	return QualityScore{Value: v, Detail: fmt.Sprintf("%.0f s analizzati · %s", seconds, displayLabel)}, nil
+	what := fmt.Sprintf("%.0f s analizzati", seconds)
+	if len(windows) > 1 {
+		what = fmt.Sprintf("%.0f s analizzati in %d tratti", seconds, len(windows))
+	}
+	return QualityScore{Value: v, Detail: what + " · " + displayLabel}, nil
 }
 
-// Reference di benchmark: spezzone centrale, solo video, stream copy
-func makeBenchRef(ctx context.Context, src string, info *MediaInfo, dir string) (string, float64, error) {
-	benchDur := BenchSeconds
-	start := info.Duration / 2
-	if info.Duration > 0 && info.Duration-start < benchDur {
-		benchDur = info.Duration - start
+// Reference di benchmark: gli spezzoni scelti, solo video, stream copy, uniti in un unico file
+type BenchRef struct {
+	File     string
+	Duration float64
+	Windows  [][2]float64 // finestre per ColorVideoVDP, nel tempo della reference
+}
+
+func makeBenchRef(ctx context.Context, src string, info *MediaInfo, dir string, segs []BenchSegment) (BenchRef, error) {
+	if len(segs) == 0 {
+		segs = centerSegment(info)
 	}
 	refFile := filepath.Join(dir, "ref.mkv")
-	out, err := exec.CommandContext(ctx, Tools.FFmpeg, "-hide_banner", "-nostdin", "-v", "error", "-y",
-		"-ss", fmt.Sprintf("%f", start), "-i", src, "-t", fmt.Sprintf("%f", benchDur),
-		"-map", fmt.Sprintf("0:%d", info.VideoIndex), "-c", "copy", refFile).CombinedOutput()
-	if ctx.Err() != nil {
-		return "", 0, ctx.Err()
+	ffmpeg := func(args ...string) error {
+		out, err := exec.CommandContext(ctx, Tools.FFmpeg, append([]string{"-hide_banner", "-nostdin", "-v", "error", "-y"}, args...)...).CombinedOutput()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err != nil {
+			return fmt.Errorf("generazione reference: %w\n%s", err, tail(out, 10))
+		}
+		return nil
 	}
-	if err != nil {
-		return "", 0, fmt.Errorf("generazione reference: %w\n%s", err, tail(out, 10))
+	parts := []string{}
+	durs := []float64{}
+	for i, sg := range segs {
+		part := refFile
+		if len(segs) > 1 {
+			part = filepath.Join(dir, fmt.Sprintf("seg%d.mkv", i))
+		}
+		if err := ffmpeg("-ss", fmt.Sprintf("%f", sg.Start), "-i", src, "-t", fmt.Sprintf("%f", sg.Duration),
+			"-map", fmt.Sprintf("0:%d", info.VideoIndex), "-c", "copy", part); err != nil {
+			return BenchRef{}, err
+		}
+		d := sg.Duration
+		if pi, err := probeFile(part); err == nil && pi.Duration > 0 {
+			d = pi.Duration // il taglio cade sui keyframe: durata reale
+		}
+		parts = append(parts, part)
+		durs = append(durs, d)
 	}
-	return refFile, benchDur, nil
+	if len(parts) > 1 {
+		list := filepath.Join(dir, "concat.txt")
+		var b strings.Builder
+		for _, p := range parts {
+			fmt.Fprintf(&b, "file '%s'\n", strings.ReplaceAll(p, "'", `'\''`))
+		}
+		if err := os.WriteFile(list, []byte(b.String()), 0o644); err != nil {
+			return BenchRef{}, err
+		}
+		if err := ffmpeg("-f", "concat", "-safe", "0", "-i", list, "-map", "0", "-c", "copy", refFile); err != nil {
+			return BenchRef{}, err
+		}
+		for _, p := range parts {
+			os.Remove(p)
+		}
+	}
+	ref := BenchRef{File: refFile}
+	// ColorVideoVDP: CVVDPSeconds divisi tra gli spezzoni, presi al centro di ciascuno
+	w := CVVDPSeconds / float64(len(durs))
+	for _, d := range durs {
+		c := ref.Duration + d/2
+		ref.Windows = append(ref.Windows, [2]float64{math.Max(ref.Duration, c-w/2), math.Min(ref.Duration+d, c+w/2)})
+		ref.Duration += d
+	}
+	return ref, nil
 }
 
 type BenchResult struct {
@@ -1649,7 +1720,8 @@ type BenchResult struct {
 	FPS    float64 `json:"fps"`
 }
 
-func benchOne(ctx context.Context, info *MediaInfo, refFile, dir string, benchDur float64, p Preset, metric string, on func(ProgressUpdate)) (BenchResult, error) {
+func benchOne(ctx context.Context, info *MediaInfo, ref BenchRef, dir string, p Preset, metric string, on func(ProgressUpdate)) (BenchResult, error) {
+	refFile, benchDur := ref.File, ref.Duration
 	outFile := filepath.Join(dir, "bench_"+p.ID+".mkv")
 	defer os.Remove(outFile)
 	job := Job{
@@ -1662,7 +1734,7 @@ func benchOne(ctx context.Context, info *MediaInfo, refFile, dir string, benchDu
 	if r.Err != nil {
 		return BenchResult{}, r.Err
 	}
-	q, err := measureQuality(ctx, refFile, outFile, metric, on)
+	q, err := measureQuality(ctx, refFile, outFile, metric, on, ref.Windows...)
 	if err != nil {
 		return BenchResult{}, err
 	}
@@ -1728,8 +1800,26 @@ func benchFile(ctx context.Context, src string, info *MediaInfo, metric string) 
 	trackTmp(benchDir)
 	defer releaseTmp(benchDir)
 
+	fmt.Printf("\n%sScelta degli spezzoni...%s\n", C.Blue, C.Reset)
+	on, end := cliProgress()
+	analysis, err := analyzeSegments(ctx, src, info, on)
+	end()
+	if err != nil {
+		if ctx.Err() != nil {
+			return "", ""
+		}
+		fmt.Printf("%s⚠️  %v: si usa lo spezzone centrale.%s\n", C.Yellow, err, C.Reset)
+		analysis.Segments = centerSegment(info)
+	}
+	for _, sg := range analysis.Segments {
+		fmt.Printf(" • %s (%.0f s, luminosità %.0f%%, %.1f Mb/s)\n", formatTimestamp(sg.Start), sg.Duration, sg.Luma*100, float64(sg.Bitrate)/1e6)
+	}
+	for _, w := range analysis.Warnings {
+		fmt.Printf("%s⚠️  %s%s\n", C.Yellow, w, C.Reset)
+	}
+
 	fmt.Printf("\n%sGenerazione Reference...%s\n", C.Blue, C.Reset)
-	refFile, benchDur, err := makeBenchRef(ctx, src, info, benchDir)
+	ref, err := makeBenchRef(ctx, src, info, benchDir, analysis.Segments)
 	if err != nil {
 		if ctx.Err() == nil {
 			fmt.Printf("%s❌ %v%s\n", C.Red, err, C.Reset)
@@ -1769,7 +1859,7 @@ func benchFile(ctx context.Context, src string, info *MediaInfo, metric string) 
 				}
 				fmt.Printf("\nTesting: %s%s%s\n", C.Bold, p.Name, C.Reset)
 				on, end := cliProgress()
-				res, err := benchOne(ctx, info, refFile, benchDir, benchDur, p, metric, on)
+				res, err := benchOne(ctx, info, ref, benchDir, p, metric, on)
 				end()
 				if err != nil {
 					if ctx.Err() == nil {

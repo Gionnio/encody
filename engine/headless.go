@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -108,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] <file> | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
 		return 0, true
 	default:
 		return 0, false
@@ -128,6 +129,8 @@ func headlessMain(args []string) (int, bool) {
 	metric := fs.String("metric", "", "") // vuoto = vmaf per quality, automatica per bench
 	ref := fs.String("ref", "", "")
 	dist := fs.String("dist", "", "")
+	segList := fs.String("segments", "", "") // inizi in secondi, separati da virgola
+	at := fs.Float64("at", -1, "")
 	if err := fs.Parse(args[1:]); err != nil {
 		return fail(fmt.Errorf("argomenti non validi: %w", err)), true
 	}
@@ -168,7 +171,19 @@ func headlessMain(args []string) (int, bool) {
 		if err != nil {
 			return failEvent(err), true
 		}
-		return cmdBench(ctx, f, *presets, strings.ToLower(*metric)), true
+		return cmdBench(ctx, f, *presets, strings.ToLower(*metric), *segList), true
+	case "segments":
+		f, err := needFile()
+		if err != nil {
+			return failEvent(err), true
+		}
+		return cmdSegments(ctx, f), true
+	case "thumb":
+		f, err := needFile()
+		if err != nil {
+			return fail(err), true
+		}
+		return cmdThumb(ctx, f, *at), true
 	case "quality":
 		m := strings.ToLower(*metric)
 		if m == "" {
@@ -430,10 +445,17 @@ func cmdRun(ctx context.Context, path string) int {
 
 // ---------- bench ----------
 
-func cmdBench(ctx context.Context, src, presetList, metric string) int {
+func cmdBench(ctx context.Context, src, presetList, metric, segList string) int {
 	info, err := probeFile(src)
 	if err != nil {
 		return failEvent(fmt.Errorf("ffprobe: %w", err))
+	}
+	// Spezzoni indicati dall'app (scelta manuale o analisi già fatta); altrimenti analisi qui
+	var segs []BenchSegment
+	if segList != "" {
+		if segs, err = parseSegmentStarts(segList, info); err != nil {
+			return failEvent(err)
+		}
 	}
 	if metric == "" || metric == "auto" {
 		metric = defaultMetric(info)
@@ -466,8 +488,18 @@ func cmdBench(ctx context.Context, src, presetList, metric string) int {
 	trackTmp(dir)
 	defer releaseTmp(dir)
 
+	if segs == nil {
+		a, err := analyzeSegments(ctx, src, info, eventProgress(nil))
+		if err != nil {
+			if ctx.Err() != nil {
+				return 130
+			}
+			emit("info", map[string]any{"message": "Analisi spezzoni non riuscita, si usa quello centrale: " + err.Error()})
+		}
+		segs = a.Segments
+	}
 	emit("step", map[string]any{"step": "Reference"})
-	refFile, benchDur, err := makeBenchRef(ctx, src, info, dir)
+	ref, err := makeBenchRef(ctx, src, info, dir, segs)
 	if err != nil {
 		if ctx.Err() != nil {
 			return 130
@@ -483,7 +515,7 @@ func cmdBench(ctx context.Context, src, presetList, metric string) int {
 		p := Presets[id]
 		base := map[string]any{"id": id}
 		emit("bench_preset_start", with(base, "name", p.Name, "index", n, "total", len(ids)))
-		res, err := benchOne(ctx, info, refFile, dir, benchDur, p, metric, eventProgress(base))
+		res, err := benchOne(ctx, info, ref, dir, p, metric, eventProgress(base))
 		if err != nil {
 			if ctx.Err() != nil {
 				break
@@ -520,5 +552,46 @@ func cmdQuality(ctx context.Context, ref, dist, metric string) int {
 		return failEvent(err)
 	}
 	emit("quality_result", map[string]any{"metric": metric, "value": q.Value, "detail": q.Detail, "verdict": qualityVerdict(metric, q.Value)})
+	return 0
+}
+
+// ---------- segments / thumb ----------
+
+// NDJSON: step, progress, segments (con miniature). Risultato in cache per lo stesso file.
+func cmdSegments(ctx context.Context, src string) int {
+	info, err := probeFile(src)
+	if err != nil {
+		return failEvent(fmt.Errorf("ffprobe: %w", err))
+	}
+	a, err := analyzeSegments(ctx, src, info, eventProgress(nil))
+	if err != nil {
+		if ctx.Err() != nil {
+			return 130
+		}
+		return failEvent(err)
+	}
+	emit("segments", map[string]any{"segments": a.Segments, "warnings": a.Warnings,
+		"median_luma": a.MedianLuma, "segment_seconds": SegmentSeconds, "duration": info.Duration})
+	return 0
+}
+
+// JSON: {"thumb": "/percorso.jpg"} per la scelta manuale di uno spezzone
+func cmdThumb(ctx context.Context, src string, at float64) int {
+	info, err := probeFile(src)
+	if err != nil {
+		return fail(fmt.Errorf("ffprobe: %w", err))
+	}
+	if at < 0 || at >= info.Duration {
+		return fail(errors.New("--at fuori dalla durata del file"))
+	}
+	dir := segmentCachePath(src)
+	if dir == "" {
+		return fail(errors.New("cartella cache non disponibile"))
+	}
+	p, err := makeThumb(ctx, src, info, dir, math.Min(at+SegmentSeconds/2, info.Duration-0.5))
+	if err != nil {
+		return fail(err)
+	}
+	printJSON(map[string]any{"thumb": p})
 	return 0
 }

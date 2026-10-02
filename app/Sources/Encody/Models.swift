@@ -161,6 +161,16 @@ struct BenchResult: Decodable, Identifiable, Hashable, Sendable {
     let fps: Double
 }
 
+/// Spezzone del benchmark scelto dall'analisi del motore
+struct BenchSegmentInfo: Decodable, Sendable {
+    let start: Double
+    let duration: Double
+    let luma: Double
+    let bitrate: Int64
+    let thumb: String?
+    let note: String?
+}
+
 struct EngineEvent: Decodable, Sendable {
     let type: String
     // coda
@@ -193,6 +203,10 @@ struct EngineEvent: Decodable, Sendable {
     let result: BenchResult?
     let results: [BenchResult]?
     let warnings: [String]?
+    // spezzoni del benchmark
+    let segments: [BenchSegmentInfo]?
+    let segmentSeconds: Double?
+    let duration: Double?
     // quality
     let metric: String?
     let value: Double?
@@ -304,6 +318,20 @@ enum Fmt {
     static func change(_ inBytes: Int64, _ outBytes: Int64) -> Double {
         guard inBytes > 0 else { return 0 }
         return (Double(outBytes) - Double(inBytes)) / Double(inBytes) * 100
+    }
+
+    /// 754 → "12:34", 3725 → "1:02:05"
+    static func timestamp(_ seconds: Double) -> String {
+        let t = Int(seconds)
+        return t >= 3600 ? String(format: "%d:%02d:%02d", t / 3600, t % 3600 / 60, t % 60)
+                         : String(format: "%d:%02d", t / 60, t % 60)
+    }
+
+    /// "1:02:05", "12:34" o "754" → secondi
+    static func parseTimestamp(_ s: String) -> Double? {
+        let parts = s.trimmingCharacters(in: .whitespaces).split(separator: ":").map { Double($0) }
+        guard !parts.isEmpty, parts.count <= 3, parts.allSatisfy({ $0 != nil && $0! >= 0 }) else { return nil }
+        return parts.reduce(0) { $0 * 60 + $1! }
     }
 
     static func bitrate(_ b: Int64) -> String? {
