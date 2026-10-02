@@ -27,6 +27,24 @@ struct MetaBadge: View {
     }
 }
 
+/// Badge della grana: solo media e alta (la bassa è il caso normale)
+struct GrainBadge: View {
+    let grain: GrainInfo
+
+    var body: some View {
+        if grain.level != .low {
+            Label("Grana \(grain.level.label)", systemImage: "circle.dotted")
+                .labelStyle(.titleAndIcon)
+                .font(.caption2.weight(.bold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(grain.level.color.opacity(0.18), in: Capsule())
+                .foregroundStyle(grain.level.color)
+                .help(String(format: "Indice di grana %.2f (bassa < 1, media 1–2, alta ≥ 2)", grain.index))
+        }
+    }
+}
+
 struct Chip: View {
     let text: String
     init(_ text: String) { self.text = text }

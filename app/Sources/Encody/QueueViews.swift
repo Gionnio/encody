@@ -212,6 +212,7 @@ struct QueueRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
+                if let g = item.grain { GrainBadge(grain: g) }
                 if let p = item.probe { MetaBadge(meta: p.metaType, dvProfile: p.dvProfile) }
             }
             Text(subtitle)
@@ -328,6 +329,7 @@ struct JobEditorView: View {
 }
 
 private struct FileHeaderSection: View {
+    @Environment(AppModel.self) private var model
     let item: QueueItem
     let probe: ProbeResult
 
@@ -343,6 +345,20 @@ private struct FileHeaderSection: View {
                     Chip(Fmt.duration(probe.duration))
                     Chip("\(probe.width)×\(probe.height)")
                     Chip(String(format: "%.3f fps", probe.fps))
+                    if let g = item.grain { GrainBadge(grain: g) }
+                }
+                if let g = item.grain, g.level != .low, item.presetID != GrainInfo.presetID,
+                   let grainPreset = model.preset(GrainInfo.presetID) {
+                    HStack(spacing: 8) {
+                        Label("Film con grana \(g.level.label): i preset normali tendono a lisciarla.",
+                              systemImage: "circle.dotted")
+                            .font(.caption)
+                            .foregroundStyle(g.level.color)
+                        Spacer(minLength: 4)
+                        Button("Usa \(grainPreset.name)") { item.presetID = GrainInfo.presetID }
+                            .controlSize(.small)
+                            .disabled(item.isLocked)
+                    }
                 }
                 if item.status == .running {
                     ProgressView(value: min(item.percent, 100), total: 100) {

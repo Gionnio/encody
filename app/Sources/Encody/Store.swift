@@ -100,6 +100,7 @@ final class QueueItem: Identifiable {
     var cropValue = ""
     var cropEnabled = false
     var cropDetecting = false
+    var grain: GrainInfo?
     var selectedAudio: Set<Int> = []
     var selectedSubs: Set<Int> = []
 
@@ -182,6 +183,7 @@ final class AppModel {
     @ObservationIgnored private var queueFile: URL?
     @ObservationIgnored private var probeChain: Task<Void, Never>?
     @ObservationIgnored private var cropChain: Task<Void, Never>?
+    @ObservationIgnored private var grainChain: Task<Void, Never>?
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "outputDir") ?? ""
@@ -302,6 +304,12 @@ final class AppModel {
             item.status = .ready
             if preset(item.presetID)?.isCopy == false, !item.doInject, item.cropValue.isEmpty {
                 enqueueCrop(item)
+            }
+            // grana: un file alla volta, in coda dietro al crop (entrambi leggono molti dati dal disco)
+            let previous = grainChain
+            grainChain = Task {
+                await previous?.value
+                item.grain = await GrainInfo.measure(item.url)
             }
         } catch {
             item.probeError = error.localizedDescription
@@ -676,6 +684,8 @@ final class BenchModel {
     var analysisError: String?
     var fileDuration = 0.0
     var segmentSeconds = 15.0
+    var grain: GrainInfo?
+    var grainPresetSuggested = false
     var probe: ProbeResult?
     var probeError: String?
     var selected: Set<String> = ["1", "3"]
@@ -704,6 +714,8 @@ final class BenchModel {
         segments = []
         segmentWarnings = []
         analysisError = nil
+        grain = nil
+        grainPresetSuggested = false
         probe = nil
         probeError = nil
         results = []
@@ -719,6 +731,16 @@ final class BenchModel {
             if probe?.isHDR == false, metric == .xpsnr { metric = .vmaf }
             fileDuration = probe?.duration ?? 0
             analyzeSegments()
+            Task {
+                let g = await GrainInfo.measure(url)
+                guard fileURL == url else { return }
+                grain = g
+                // grana media o alta: si aggiunge al confronto il preset dedicato
+                if let g, g.level != .low, !selected.contains(GrainInfo.presetID) {
+                    selected.insert(GrainInfo.presetID)
+                    grainPresetSuggested = true
+                }
+            }
         } catch {
             probeError = error.localizedDescription
         }

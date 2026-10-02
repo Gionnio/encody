@@ -19,6 +19,13 @@ struct BenchmarkView: View {
                         Chip(Fmt.bytes(p.size))
                         Chip(Fmt.duration(p.duration))
                         Chip("\(p.width)×\(p.height)")
+                        if let g = bench.grain { GrainBadge(grain: g) }
+                    }
+                    if let g = bench.grain, bench.grainPresetSuggested {
+                        Label("Grana \(g.level.label): aggiunto al confronto il preset dedicato alla grana.",
+                              systemImage: "circle.dotted")
+                            .font(.caption)
+                            .foregroundStyle(g.level.color)
                     }
                     if p.isHDR && bench.metric == .vmaf {
                         Label("vmaf_v0.6.1 è un modello SDR: su sorgenti \(p.metaType) i valori sono indicativi. Per l'HDR usa XPSNR o ColorVideoVDP.",

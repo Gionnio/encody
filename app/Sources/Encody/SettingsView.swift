@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("extraPath") private var extraPath = ""
     @AppStorage("appTheme") private var appTheme: AppTheme = .system
     @AppStorage("notifyQueueDone") private var notifyQueueDone = true
+    @AppStorage("analyzeGrain") private var analyzeGrain = true
     @State private var installer = CVVDPInstaller()
 
     var body: some View {
@@ -19,6 +20,10 @@ struct SettingsView: View {
                 Toggle(isOn: $notifyQueueDone) {
                     Text("Notifica a fine coda")
                     Text("Avvisa quando la coda finisce mentre Encody è in secondo piano.")
+                }
+                Toggle(isOn: $analyzeGrain) {
+                    Text("Analizza la grana dei film")
+                    Text("Misura la grana di ogni file aggiunto (circa 10–20 s, poi in cache) e suggerisce il preset dedicato.")
                 }
             }
 

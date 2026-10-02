@@ -161,6 +161,43 @@ struct BenchResult: Decodable, Identifiable, Hashable, Sendable {
     let fps: Double
 }
 
+// MARK: - grana
+
+enum GrainLevel: String, Decodable, Sendable {
+    case low, medium, high
+
+    var label: String {
+        switch self {
+        case .low: "bassa"
+        case .medium: "media"
+        case .high: "alta"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .low: .secondary
+        case .medium: .yellow
+        case .high: .orange
+        }
+    }
+}
+
+struct GrainInfo: Decodable, Sendable {
+    let index: Double
+    let level: GrainLevel
+    let points: Int
+
+    /// Preset del motore pensato per la grana
+    static let presetID = "5"
+
+    static func measure(_ url: URL) async -> GrainInfo? {
+        guard UserDefaults.standard.object(forKey: "analyzeGrain") as? Bool ?? true,
+              let data = try? await Engine.runJSON(["grain", url.path]) else { return nil }
+        return try? JSONCoding.decoder.decode(GrainInfo.self, from: data)
+    }
+}
+
 /// Spezzone del benchmark scelto dall'analisi del motore
 struct BenchSegmentInfo: Decodable, Sendable {
     let start: Double

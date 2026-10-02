@@ -14,7 +14,8 @@
 
 ## ✨ Features
 - **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, import/export the queue as JSON (the same format as the CLI).
-- **Presets:** Remux (copy video), 4K/1080p VideoToolbox, 4K x265 CPU, 4K high bitrate VBR.
+- **Presets:** Remux (copy video), 4K/1080p VideoToolbox, 4K x265 CPU, 4K high bitrate VBR, and two x265 presets for grainy films.
+- **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check; optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
@@ -56,6 +57,18 @@ Requires Go and the Xcode Command Line Tools (Swift 5.9+). During development: `
 
 The icon source is `icon/AppIcon.svg`; the PNGs in `icon/AppIcon.iconset` are turned into `AppIcon.icns` by the build script.
 
+## 🎞️ Film Grain
+
+Normal presets smooth grain away (the x265 CRF 18 preset kept only 26–52% of the grain of *The Empire Strikes Back*). The grain presets disable SAO, lower deblocking, raise `psy-rd`/`psy-rdoq` and use `aq-mode 3`:
+
+| Preset | Grain kept | Size vs. BDRemux | Speed |
+|---|---|---|---|
+| x265 Medium CRF 18 (preset 3) | 26–52% | 10–14% | 1× |
+| x265 Grain Slow CRF 17 (preset 5) | 75–87% | 41–44% | ~0.4× |
+| x265 Grain fast, Medium CRF 17 (preset 6) | 58–81% | 23–27% | ~1× |
+
+`--tune grain` keeps everything but produces files larger than the source. Grain index thresholds: low < 1, medium 1–2, high ≥ 2 (10-bit code values).
+
 ## 📏 Quality Metrics
 
 | Metric | Use | Notes |
@@ -79,6 +92,7 @@ The app contains no encoding logic: it runs the engine headless and reads its JS
 | `encody plan < queue.json` | per job: video description, audio plan, tonemap/inject constraints, warnings |
 | `encody run [--test] <queue.json>` | NDJSON: queue_start, job_start, step, progress, info, job_done, queue_done |
 | `encody segments <file>` | NDJSON: step, progress, segments (start, luma, bitrate, thumbnail); cached in `~/Library/Caches/Encody` |
+| `encody grain <file>` | `{"index": 2.82, "level": "high", "points": 15}` (cached) |
 | `encody thumb --at T <file>` | `{"thumb": "…jpg"}` for a sample starting at T seconds |
 | `encody bench --presets 1,3 [--metric auto\|vmaf\|xpsnr\|cvvdp] [--segments t1,t2,t3] <file>` | NDJSON: bench_start, bench_preset_start, progress, bench_result, bench_done |
 | `encody quality --metric vmaf\|ssim\|xpsnr\|cvvdp --ref A --dist B` | NDJSON: step, progress, quality_result |

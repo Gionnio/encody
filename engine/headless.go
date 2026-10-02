@@ -109,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
 		return 0, true
 	default:
 		return 0, false
@@ -178,6 +178,12 @@ func headlessMain(args []string) (int, bool) {
 			return failEvent(err), true
 		}
 		return cmdSegments(ctx, f), true
+	case "grain":
+		f, err := needFile()
+		if err != nil {
+			return fail(err), true
+		}
+		return cmdGrain(ctx, f), true
 	case "thumb":
 		f, err := needFile()
 		if err != nil {
@@ -593,5 +599,22 @@ func cmdThumb(ctx context.Context, src string, at float64) int {
 		return fail(err)
 	}
 	printJSON(map[string]any{"thumb": p})
+	return 0
+}
+
+// JSON: {"index": 2.82, "level": "high", "points": 15}. Risultato in cache per lo stesso file.
+func cmdGrain(ctx context.Context, src string) int {
+	info, err := probeFile(src)
+	if err != nil {
+		return fail(fmt.Errorf("ffprobe: %w", err))
+	}
+	g, err := measureGrain(ctx, src, info)
+	if err != nil {
+		if ctx.Err() != nil {
+			return 130
+		}
+		return fail(err)
+	}
+	printJSON(g)
 	return 0
 }

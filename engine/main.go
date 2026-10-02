@@ -99,6 +99,9 @@ type Preset struct {
 	Scale        int      `json:"scale,omitempty"` // larghezza target, 0 = nessuno scaling
 }
 
+const grainX265Params = "no-sao=1:aq-mode=3:aq-strength=0.8:psy-rd=3:psy-rdoq=10:deblock=-2,-2:ipratio=1.2:pbratio=1.1:" +
+	"rskip=2:rskip-edge-threshold=2:strong-intra-smoothing=0:repeat-headers=1"
+
 var fullPass = []string{"aac", "ac3", "eac3", "truehd", "dts", "opus", "flac"}
 
 // I flag colore non stanno qui: li genera colorArgs() in base a sorgente e scelta HDR/SDR.
@@ -113,6 +116,16 @@ var Presets = map[string]Preset{
 		AudioBitrate: "256k", Passthrough: []string{"aac", "ac3", "eac3", "dts", "truehd"}},
 	"3": {ID: "3", Name: "4K CPU x265 (Medium - CRF 18)", Type: "cpu",
 		VideoOpts:    []string{"-c:v", "libx265", "-preset", "medium", "-crf", "18", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", "sao=0:aq-mode=2:repeat-headers=1", "-tag:v", "hvc1"},
+		AudioBitrate: "320k", Passthrough: fullPass},
+	// Grana (tarati su L'Impero colpisce ancora, BDRemux 4K): niente SAO e deblock leggero per non
+	// cancellarla, psy-rd/psy-rdoq alti per conservarne l'energia, aq-mode 3 per le ombre,
+	// ipratio/pbratio bassi contro il pulsare tra I e B. Grana conservata: slow 75–87%, medium 58–81%,
+	// contro 26–52% del preset 3. tune=grain non serve: il file supera la sorgente.
+	"5": {ID: "5", Name: "4K CPU x265 Grana (Slow - CRF 17)", Type: "cpu",
+		VideoOpts:    []string{"-c:v", "libx265", "-preset", "slow", "-crf", "17", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", grainX265Params, "-tag:v", "hvc1"},
+		AudioBitrate: "320k", Passthrough: fullPass},
+	"6": {ID: "6", Name: "4K CPU x265 Grana veloce (Medium - CRF 17)", Type: "cpu",
+		VideoOpts:    []string{"-c:v", "libx265", "-preset", "medium", "-crf", "17", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", grainX265Params, "-tag:v", "hvc1"},
 		AudioBitrate: "320k", Passthrough: fullPass},
 	"4": {ID: "4", Name: "4K High Bitrate VBR (24Mbps)", Type: "gpu",
 		VideoOpts:    []string{"-c:v", "hevc_videotoolbox", "-profile:v", "main10", "-pix_fmt", "p010le", "-b:v", "24000k", "-maxrate", "35000k", "-bufsize", "35000k", "-tag:v", "hvc1", "-fps_mode", "vfr"},
