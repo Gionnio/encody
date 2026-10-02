@@ -8,7 +8,9 @@
 
 **Encody** is a native macOS app (SwiftUI + a Go engine driving FFmpeg) to re-encode and remux a video library in batch, keeping HDR10, HDR10+ and Dolby Vision metadata intact and choosing exactly which audio and subtitle tracks to keep.
 
-> Encody was previously called **MediaEnc**. Settings are migrated automatically on first launch.
+![Encody](docs/screenshot.png)
+
+> Encody 1.0 is the first GUI release of what used to be the **MediaEnc** command-line tool. Settings from the MediaEnc app are migrated automatically on first launch.
 
 ## ✨ Features
 - **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, import/export the queue as JSON (the same format as the CLI).

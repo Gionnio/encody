@@ -1,6 +1,6 @@
 // ENCODY (ex MediaEnc) — motore Go
 //
-// Changelog v15.1:
+// Encody 1.0 (prima versione con GUI; la storia precedente è di MediaEnc):
 //  - Rinominato Encody; metriche XPSNR e ColorVideoVDP (HDR) per benchmark e quality check
 //
 // Changelog v15.0:
@@ -52,7 +52,7 @@ import (
 // ==========================================
 
 const (
-	AppName      = "ENCODY v15.1"
+	AppName      = "ENCODY v1.0"
 	TestDuration = "300"
 	TestSeconds  = 300.0
 	BenchSeconds = 45.0
