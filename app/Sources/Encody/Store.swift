@@ -163,6 +163,10 @@ final class AppModel {
     var selection: Set<UUID> = []
     var defaultPresetID = "1"
     var defaultAudioMode = "copy"
+    /// Nuovi file Dolby Vision / HDR10+: metadati dinamici mantenuti (reiniettati) o solo HDR10
+    var keepDynamicMetadata = UserDefaults.standard.object(forKey: "keepDynamicMetadata") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(keepDynamicMetadata, forKey: "keepDynamicMetadata") }
+    }
     var testMode = false
     var isRunning = false
     var queueError: String?
@@ -297,6 +301,9 @@ final class AppModel {
             item.selectedAudio = Set(p.audio.filter(\.suggested).map(\.index))
             item.selectedSubs = Set(p.subs.filter(\.suggested).map(\.index))
             item.tonemap = defaultTonemap(for: item)
+            // il motore verifica poi se l'inject è possibile (refreshPlan lo toglie se non lo è)
+            item.doInject = keepDynamicMetadata && p.hasDynamicMetadata && !item.tonemap
+                && preset(item.presetID)?.isCopy == false
             if let spec = item.pendingSpec {
                 apply(spec, to: item)
                 item.pendingSpec = nil
@@ -387,7 +394,11 @@ final class AppModel {
             item.planError = nil
             // i vincoli del motore vincono sulle scelte UI
             if item.tonemap && !plan.canTonemap { item.tonemap = false }
-            if item.doInject && !plan.canInject { item.doInject = false }
+            if item.doInject && !plan.canInject {
+                item.doInject = false
+                // l'inject bloccava il crop: ora si può rilevare
+                if preset(item.presetID)?.isCopy == false, item.cropValue.isEmpty { enqueueCrop(item) }
+            }
         } catch {
             item.planError = error.localizedDescription
         }

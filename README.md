@@ -16,7 +16,7 @@
 - **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, import/export the queue as JSON (the same format as the CLI).
 - **Presets:** Remux (copy video), 4K/1080p VideoToolbox, 4K x265 CPU, 4K high bitrate VBR, and two x265 presets for grainy films.
 - **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
-- **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check; optional real HDR→SDR tonemapping (zscale).
+- **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check (kept by default for new files, switchable to HDR10 only); optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
 - **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, notifications.

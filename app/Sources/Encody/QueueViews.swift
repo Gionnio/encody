@@ -269,6 +269,13 @@ struct QueueFooter: View {
             }
             .frame(maxWidth: 190)
             .disabled(model.isRunning)
+            Picker("DV/HDR10+:", selection: $model.keepDynamicMetadata) {
+                Text("Mantieni").tag(true)
+                Text("Solo HDR10").tag(false)
+            }
+            .frame(maxWidth: 220)
+            .help("Dolby Vision e HDR10+ dei nuovi file: mantenuti (base HDR10 + metadati reiniettati) oppure scartati. Si cambia per file nell'editor.")
+            .disabled(model.isRunning)
             Button { model.chooseOutputDir() } label: {
                 Label(model.outputDir.lastPathComponent, systemImage: "folder")
             }
