@@ -19,7 +19,8 @@
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check; optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
-- **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, Dock badge and notifications.
+- **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, notifications.
+- **Dock Progress:** Percentage of the file being encoded and a progress bar for the whole queue on the Dock icon (or completed files, or nothing).
 - **Benchmark:** Encode three 15 s samples with several presets and compare quality vs. estimated size on a chart. Samples are picked automatically from the beginning, middle and end of the film by analyzing bitrate and brightness (no black frames, fades or overly dark scenes, intro and credits skipped), with thumbnails and manual override.
 - **Quality Check:** Compare any original with its encode using **VMAF**, **XPSNR**, **ColorVideoVDP** or **SSIM**.
 - **HDR Quality Metrics:** XPSNR (10-bit, built into FFmpeg) and ColorVideoVDP (perceptual model with a PQ/HLG display, GPU accelerated) instead of the SDR-only VMAF model.

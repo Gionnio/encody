@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("appTheme") private var appTheme: AppTheme = .system
     @AppStorage("notifyQueueDone") private var notifyQueueDone = true
     @AppStorage("analyzeGrain") private var analyzeGrain = true
+    @AppStorage("dockStyle") private var dockStyle: DockStyle = .percent
     @State private var installer = CVVDPInstaller()
 
     var body: some View {
@@ -20,6 +21,12 @@ struct SettingsView: View {
                 Toggle(isOn: $notifyQueueDone) {
                     Text("Notifica a fine coda")
                     Text("Avvisa quando la coda finisce mentre Encody è in secondo piano.")
+                }
+                Picker(selection: $dockStyle) {
+                    ForEach(DockStyle.allCases) { Text($0.label).tag($0) }
+                } label: {
+                    Text("Icona del Dock durante la coda")
+                    Text("Percentuale del file in codifica e barra di avanzamento dell'intera coda.")
                 }
                 Toggle(isOn: $analyzeGrain) {
                     Text("Analizza la grana dei film")

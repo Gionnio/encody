@@ -568,6 +568,7 @@ final class AppModel {
             if let s = ev.step { item?.step = s }
             item?.percent = ev.percent ?? 0
             item?.fps = ev.fps ?? 0
+            updateDockBadge()
         case "info":
             if let m = ev.message {
                 if let item { item.log.append(m) } else { queueLog.append(m) }
@@ -624,7 +625,7 @@ final class AppModel {
             try? FileManager.default.removeItem(at: f)
             queueFile = nil
         }
-        NSApp.dockTile.badgeLabel = nil
+        DockProgress.clear()
         if code != 0 && code != 130 && recap == nil && queueError == nil {
             let msg = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             queueError = msg.isEmpty ? "encody terminato con codice \(code)" : msg
@@ -632,13 +633,28 @@ final class AppModel {
         runningItems = []
     }
 
+    /// Icona del Dock: percentuale del file in corso e barra della coda, pesata sulla durata dei file
     private func updateDockBadge() {
-        guard isRunning else {
-            NSApp.dockTile.badgeLabel = nil
+        guard isRunning, !runningItems.isEmpty else {
+            DockProgress.clear()
             return
         }
-        let done = runningItems.filter { [.done, .failed, .stopped].contains($0.status) }.count
-        NSApp.dockTile.badgeLabel = "\(done)/\(runningItems.count)"
+        let finished: Set<ItemStatus> = [.done, .failed, .stopped]
+        let done = runningItems.filter { finished.contains($0.status) }.count
+        // in modalità test si codificano solo i primi 5 minuti
+        func weight(_ it: QueueItem) -> Double {
+            let d = max(it.probe?.duration ?? 1, 1)
+            return testMode ? min(d, 300) : d
+        }
+        let total = runningItems.reduce(0) { $0 + weight($1) }
+        let completed = runningItems.reduce(0.0) { acc, it in
+            if finished.contains(it.status) { return acc + weight(it) }
+            if it.status == .running { return acc + weight(it) * min(it.percent, 100) / 100 }
+            return acc
+        }
+        let current = runningItems.first { $0.status == .running }
+        DockProgress.update(itemPercent: current.map { min($0.percent, 100) }, overall: completed / total,
+                            done: done, total: runningItems.count)
     }
 
     private func notify(title: String, body: String) {
