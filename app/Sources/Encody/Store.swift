@@ -426,6 +426,19 @@ final class AppModel {
         remove(ids: Set(items.filter { $0.status == .done || $0.status == .invalid }.map(\.id)))
     }
 
+    /// File non ancora fatti e non in lavorazione (pronti, falliti, interrotti, in analisi)
+    var pendingItems: [QueueItem] { items.filter { $0.status != .done && $0.status != .invalid && !$0.isLocked } }
+    var finishedCount: Int { items.filter { $0.status == .done || $0.status == .invalid }.count }
+
+    func clearPending() {
+        remove(ids: Set(pendingItems.map(\.id)))
+    }
+
+    /// Tutto tranne i file in lavorazione
+    func clearAll() {
+        remove(ids: Set(items.map(\.id)))
+    }
+
     // MARK: flag attivo/disattivo
 
     func setEnabled(_ on: Bool, ids: Set<UUID>? = nil) {

@@ -4,6 +4,9 @@ import UniformTypeIdentifiers
 
 struct QueueView: View {
     @Environment(AppModel.self) private var model
+    @State private var confirmClear: ClearScope?
+
+    enum ClearScope { case pending, all }
 
     var body: some View {
         @Bindable var model = model
@@ -37,12 +40,22 @@ struct QueueView: View {
                     Button("Importa coda…") { model.importQueue() }
                     Button("Esporta coda…") { model.exportQueue() }
                         .disabled(model.items.isEmpty)
-                    Divider()
-                    Button("Rimuovi completati") { model.clearFinished() }
-                        .disabled(model.isRunning)
                 } label: {
                     Label("Coda", systemImage: "ellipsis.circle")
                 }
+                Menu {
+                    Button("Rimuovi completati (\(model.finishedCount))") { model.clearFinished() }
+                        .disabled(model.finishedCount == 0)
+                    Button("Rimuovi da fare (\(model.pendingItems.count))…") { confirmClear = .pending }
+                        .disabled(model.pendingItems.isEmpty)
+                    Divider()
+                    Button("Svuota tutta la coda…", role: .destructive) { confirmClear = .all }
+                        .disabled(model.items.allSatisfy(\.isLocked))
+                } label: {
+                    Label("Svuota", systemImage: "trash")
+                }
+                .help("Rimuovi file dalla coda (i file su disco non vengono toccati)")
+                .disabled(model.items.isEmpty)
                 Toggle(isOn: $model.testMode) {
                     Label("Test 5 min", systemImage: "flask")
                 }
@@ -62,6 +75,18 @@ struct QueueView: View {
                     .help("Avvia la coda (⌘R)")
                 }
             }
+        }
+        .confirmationDialog(confirmClear == .all ? "Svuotare la coda?" : "Rimuovere i file da fare?",
+                            isPresented: Binding(get: { confirmClear != nil }, set: { if !$0 { confirmClear = nil } })) {
+            Button(confirmClear == .all ? "Svuota coda" : "Rimuovi", role: .destructive) {
+                if confirmClear == .all { model.clearAll() } else { model.clearPending() }
+                confirmClear = nil
+            }
+            Button("Annulla", role: .cancel) { confirmClear = nil }
+        } message: {
+            Text(model.isRunning
+                 ? "Le impostazioni scelte per questi file andranno perse. I file in codifica restano in coda; i file su disco non vengono toccati."
+                 : "Le impostazioni scelte per questi file andranno perse. I file su disco non vengono toccati.")
         }
         .sheet(isPresented: $model.showRecap) {
             if let r = model.recap { RecapSheet(recap: r) }

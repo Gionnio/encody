@@ -13,7 +13,7 @@
 > Encody 1.0 is the first GUI release of what used to be the **MediaEnc** command-line tool. Settings from the MediaEnc app are migrated automatically on first launch.
 
 ## ✨ Features
-- **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, import/export the queue as JSON (the same format as the CLI).
+- **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, clear finished or pending items, import/export the queue as JSON (the same format as the CLI).
 - **Presets:** Remux (copy video), 4K/1080p VideoToolbox, 4K x265 CPU, 4K high bitrate VBR, and two x265 presets for grainy films.
 - **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check (kept by default for new files, switchable to HDR10 only); optional real HDR→SDR tonemapping (zscale).
