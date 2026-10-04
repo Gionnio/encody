@@ -12,6 +12,22 @@ struct PresetValidation: Decodable {
     let ok: Bool
     let issues: [PresetIssue]
     let command: String?
+
+    init(ok: Bool, issues: [PresetIssue], command: String?) {
+        self.ok = ok
+        self.issues = issues
+        self.command = command
+    }
+
+    // tollerante: un motore precedente rispondeva "issues": null quando non c'erano problemi
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try c.decode(Bool.self, forKey: .ok)
+        issues = try c.decodeIfPresent([PresetIssue].self, forKey: .issues) ?? []
+        command = try c.decodeIfPresent(String.self, forKey: .command)
+    }
+
+    private enum CodingKeys: String, CodingKey { case ok, issues, command }
 }
 
 struct PresetTestCheck: Decodable, Hashable {

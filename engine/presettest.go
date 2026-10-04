@@ -59,14 +59,14 @@ func cmdPreset(ctx context.Context, args []string) int {
 	switch args[0] {
 	case "validate":
 		issues := validateSpec(spec)
+		if issues == nil {
+			issues = []PresetIssue{} // sempre una lista: l'app non accetta null
+		}
 		out := map[string]any{"ok": !hasErrors(issues), "issues": issues}
 		if !hasErrors(issues) {
 			if p, err := compileSpec(spec); err == nil {
 				out["command"] = previewCommand(p)
 			}
-		}
-		if out["issues"] == nil {
-			out["issues"] = []PresetIssue{}
 		}
 		printJSON(out)
 		return 0

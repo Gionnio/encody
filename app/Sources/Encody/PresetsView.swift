@@ -9,9 +9,11 @@ struct PresetsView: View {
 
     var body: some View {
         let pm = model.presetsModel
-        HSplitView {
+        // elenco a larghezza fissa: HSplitView ne ignorava la larghezza ideale e rendeva lento il ridimensionamento
+        HStack(spacing: 0) {
             PresetListView(confirmDelete: $confirmDelete)
-                .frame(minWidth: 260, idealWidth: 300, maxHeight: .infinity)
+                .frame(width: 290)
+            Divider()
             Group {
                 if pm.draft != nil {
                     PresetEditorView()
@@ -234,6 +236,9 @@ private struct PresetEditorView: View {
                     TestSection()
                 }
                 .formStyle(.grouped)
+                // larghezza massima: oltre questa soglia allargare la finestra non ridispone i controlli
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
                 Divider()
                 EditorBar()
             }
@@ -336,10 +341,15 @@ private struct VideoSection: View {
                         }
                     }
                 } else {
-                    let value = Binding(get: { spec.rate.value ?? cap.qualityDefault }, set: { spec.rate.value = ($0 * 2).rounded() / 2 })
+                    // passi da 0,5 per il CRF, interi per la qualità fissa
+                    let unit = cap.lowerIsBetter ? 0.5 : 1.0
+                    let value = Binding(get: { spec.rate.value ?? cap.qualityDefault },
+                                        set: { spec.rate.value = ($0 / unit).rounded() * unit })
                     LabeledContent(cap.qualityLabel) {
                         HStack {
-                            Slider(value: value, in: cap.qualityMin...cap.qualityMax, step: cap.lowerIsBetter ? 0.5 : 1)
+                            // niente step: su macOS diventa un segno di graduazione per passo (~100), lentissimo da ridisegnare
+                            Slider(value: value, in: cap.qualityMin...cap.qualityMax)
+                                .frame(width: 240)
                             TextField("", value: value, format: .number).frame(width: 52)
                         }
                     }
@@ -419,10 +429,12 @@ private struct AdvancedSection: View {
     var body: some View {
         Section {
             if let flag = cap?.paramsFlag, !flag.isEmpty {
-                TextField("Parametri encoder", text: Binding(get: { spec.params ?? "" }, set: { spec.params = $0.isEmpty ? nil : $0 }),
-                          prompt: Text(cap?.paramsHelp ?? ""), axis: .vertical)
-                    .font(.body.monospaced())
-                    .lineLimit(1...4)
+                LabeledContent("Parametri encoder") {
+                    TextField("", text: Binding(get: { spec.params ?? "" }, set: { spec.params = $0.isEmpty ? nil : $0 }),
+                              prompt: Text(cap?.paramsHelp ?? ""), axis: .vertical)
+                        .font(.body.monospaced())
+                        .lineLimit(1...4)
+                }
                 HStack {
                     Text("Passati con \(flag).").font(.caption).foregroundStyle(.secondary)
                     Spacer()
@@ -439,9 +451,11 @@ private struct AdvancedSection: View {
                 }
                 FieldIssues(field: "params")
             }
-            TextField("Parametri extra FFmpeg", text: Binding(get: { spec.extra ?? "" }, set: { spec.extra = $0.isEmpty ? nil : $0 }),
-                      prompt: Text("es. -g 240 -bf 5"))
-                .font(.body.monospaced())
+            LabeledContent("Parametri extra FFmpeg") {
+                TextField("", text: Binding(get: { spec.extra ?? "" }, set: { spec.extra = $0.isEmpty ? nil : $0 }),
+                          prompt: Text("es. -g 240 -bf 5"))
+                    .font(.body.monospaced())
+            }
             Text("Solo aggiuntivi: input, tracce, filtri, tag colore e audio li gestisce Encody.")
                 .font(.caption).foregroundStyle(.secondary)
             FieldIssues(field: "extra")
@@ -460,8 +474,10 @@ private struct AudioSection: View {
             Picker("AC3 stereo", selection: $spec.audio.bitrate) {
                 ForEach(["192k", "224k", "256k", "320k", "384k", "448k", "640k"], id: \.self) { Text($0).tag($0) }
             }
+            // un solo menu invece di sette caselle: ogni casella è un controllo AppKit da riposizionare
+            // a ogni ridimensionamento della finestra
             LabeledContent("Copia senza ricodificare") {
-                HStack(spacing: 10) {
+                Menu(passLabel) {
                     ForEach(codecs, id: \.self) { c in
                         Toggle(label(c), isOn: Binding(
                             get: { spec.audio.passthrough?.contains(c) ?? false },
@@ -470,9 +486,9 @@ private struct AudioSection: View {
                                 if on { if !p.contains(c) { p.append(c) } } else { p.removeAll { $0 == c } }
                                 spec.audio.passthrough = p
                             }))
-                            .toggleStyle(.checkbox)
                     }
                 }
+                .fixedSize()
             }
             FieldIssues(field: "audio")
         } header: {
@@ -481,6 +497,11 @@ private struct AudioSection: View {
             Text("Valgono in modalità Pass: i codec spuntati restano identici, gli altri diventano AC3 (multicanale sempre a 640k).")
                 .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    private var passLabel: String {
+        let sel = codecs.filter { spec.audio.passthrough?.contains($0) ?? false }
+        return sel.isEmpty ? "Nessuno (tutto in AC3)" : sel.map(label).joined(separator: ", ")
     }
 
     private func label(_ c: String) -> String {
