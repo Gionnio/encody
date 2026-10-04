@@ -87,49 +87,29 @@ type ToolPaths struct {
 	HasVMAF     bool
 	HasXPSNR    bool
 	CVVDP       string // ColorVideoVDP (Python/PyTorch), facoltativo
+	Encoders    map[string]bool
 }
 
+// Preset pronto per l'uso, compilato da una PresetSpec (presets.go)
 type Preset struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
-	Type         string   `json:"type"`
+	Description  string   `json:"description,omitempty"`
+	Type         string   `json:"type"`    // copy | gpu | cpu
+	Encoder      string   `json:"encoder"` // copy, libx265, hevc_videotoolbox…
+	Codec        string   `json:"codec"`   // copy | hevc | h264 | av1
+	TenBit       bool     `json:"ten_bit"` // conserva l'HDR
+	Builtin      bool     `json:"builtin,omitempty"`
 	VideoOpts    []string `json:"video_opts"`
-	AudioBitrate string   `json:"audio_bitrate"` // AC3 stereo; il multicanale va sempre a 640k
+	FilterFormat string   `json:"filter_format,omitempty"` // formato pixel da preparare nei filtri (VideoToolbox)
+	AudioBitrate string   `json:"audio_bitrate"`           // AC3 stereo; il multicanale va sempre a 640k
 	Passthrough  []string `json:"passthrough"`
 	Scale        int      `json:"scale,omitempty"` // larghezza target, 0 = nessuno scaling
 }
 
-const grainX265Params = "no-sao=1:aq-mode=3:aq-strength=0.8:psy-rd=3:psy-rdoq=10:deblock=-2,-2:ipratio=1.2:pbratio=1.1:" +
-	"rskip=2:rskip-edge-threshold=2:strong-intra-smoothing=0:repeat-headers=1"
-
-var fullPass = []string{"aac", "ac3", "eac3", "truehd", "dts", "opus", "flac"}
-
-// I flag colore non stanno qui: li genera colorArgs() in base a sorgente e scelta HDR/SDR.
-var Presets = map[string]Preset{
-	"0": {ID: "0", Name: "Remux (Copia Video - Audio/Sub Only)", Type: "copy",
-		VideoOpts: []string{"-c:v", "copy"}, AudioBitrate: "320k"},
-	"1": {ID: "1", Name: "4K VideoToolbox (CQ 65)", Type: "gpu",
-		VideoOpts:    []string{"-c:v", "hevc_videotoolbox", "-profile:v", "main10", "-pix_fmt", "p010le", "-q:v", "65", "-fps_mode", "vfr"},
-		AudioBitrate: "320k", Passthrough: fullPass},
-	"2": {ID: "2", Name: "1080p VideoToolbox (CQ 65)", Type: "gpu", Scale: 1920,
-		VideoOpts:    []string{"-c:v", "hevc_videotoolbox", "-profile:v", "main10", "-pix_fmt", "p010le", "-q:v", "65", "-fps_mode", "vfr"},
-		AudioBitrate: "256k", Passthrough: []string{"aac", "ac3", "eac3", "dts", "truehd"}},
-	"3": {ID: "3", Name: "4K CPU x265 (Medium - CRF 18)", Type: "cpu",
-		VideoOpts:    []string{"-c:v", "libx265", "-preset", "medium", "-crf", "18", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", "sao=0:aq-mode=2:repeat-headers=1", "-tag:v", "hvc1"},
-		AudioBitrate: "320k", Passthrough: fullPass},
-	// Grana (tarati su L'Impero colpisce ancora, BDRemux 4K): niente SAO e deblock leggero per non
-	// cancellarla, psy-rd/psy-rdoq alti per conservarne l'energia, aq-mode 3 per le ombre,
-	// ipratio/pbratio bassi contro il pulsare tra I e B. Grana conservata: slow 75–87%, medium 58–81%,
-	// contro 26–52% del preset 3. tune=grain non serve: il file supera la sorgente.
-	"5": {ID: "5", Name: "4K CPU x265 Grana (Slow - CRF 17)", Type: "cpu",
-		VideoOpts:    []string{"-c:v", "libx265", "-preset", "slow", "-crf", "17", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", grainX265Params, "-tag:v", "hvc1"},
-		AudioBitrate: "320k", Passthrough: fullPass},
-	"6": {ID: "6", Name: "4K CPU x265 Grana veloce (Medium - CRF 17)", Type: "cpu",
-		VideoOpts:    []string{"-c:v", "libx265", "-preset", "medium", "-crf", "17", "-profile:v", "main10", "-pix_fmt", "yuv420p10le", "-x265-params", grainX265Params, "-tag:v", "hvc1"},
-		AudioBitrate: "320k", Passthrough: fullPass},
-	"4": {ID: "4", Name: "4K High Bitrate VBR (24Mbps)", Type: "gpu",
-		VideoOpts:    []string{"-c:v", "hevc_videotoolbox", "-profile:v", "main10", "-pix_fmt", "p010le", "-b:v", "24000k", "-maxrate", "35000k", "-bufsize", "35000k", "-tag:v", "hvc1", "-fps_mode", "vfr"},
-		AudioBitrate: "320k", Passthrough: fullPass},
+// Sorgente HDR con un encoder a 8 bit: l'unica uscita possibile è l'SDR
+func mustToneMap(meta string, p Preset) bool {
+	return isHDR(meta) && p.Type != "copy" && !p.TenBit
 }
 
 type Job struct {
@@ -209,6 +189,15 @@ func checkDeps(quiet bool) {
 		Tools.HasVMAF = strings.Contains(s, " libvmaf ")
 		Tools.HasXPSNR = strings.Contains(s, " xpsnr ")
 	}
+	if out, err := exec.Command(Tools.FFmpeg, "-hide_banner", "-encoders").Output(); err == nil {
+		Tools.Encoders = map[string]bool{}
+		for _, l := range strings.Split(string(out), "\n") {
+			if f := strings.Fields(l); len(f) >= 2 && strings.HasPrefix(f[0], "V") {
+				Tools.Encoders[f[1]] = true
+			}
+		}
+	}
+	loadUserPresets()
 	Tools.CVVDP = findCVVDP()
 
 	if quiet {
@@ -1024,6 +1013,8 @@ func metaFrameCount(ctx context.Context, meta, file string) (int64, error) {
 
 func injectBlocker(meta string, dvProfile int, p Preset) string {
 	switch {
+	case p.Type != "copy" && p.Codec != "hevc":
+		return "l'encoder del preset non è HEVC: dovi_tool e hdr10plus_tool reinseriscono i metadati solo in HEVC"
 	case p.Scale > 0:
 		return "inject non supportato con i preset scalati"
 	case meta == "DV" && dvProfile == 5:
@@ -1051,6 +1042,16 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			os.Remove(job.OutputPath)
 		}
 	}()
+	if len(job.Preset.VideoOpts) == 0 {
+		return fmt.Errorf("preset %q non trovato", job.Preset.ID)
+	}
+	if mustToneMap(job.MetaType, job.Preset) {
+		if !Tools.HasZscale {
+			return errors.New("encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR")
+		}
+		job.ToneMap = true
+		job.DoInject = false
+	}
 
 	workDir, err := os.MkdirTemp("", "enc_job")
 	if err != nil {
@@ -1075,30 +1076,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			cmd = append(cmd, "-t", TestDuration)
 		}
 
-		if job.Preset.Type != "copy" {
-			vf := []string{}
-			if job.Crop != "" {
-				vf = append(vf, job.Crop)
-			}
-			if job.Preset.Scale > 0 {
-				// Scaling prima del tonemap: la parte float a 32 bit lavora su meno pixel
-				vf = append(vf, fmt.Sprintf("scale=%d:-2:flags=lanczos", job.Preset.Scale))
-			}
-			if job.ToneMap {
-				vf = append(vf, tonemapChain(job)) // termina già con format=p010le
-			} else if job.Preset.Type == "gpu" || job.Preset.Scale > 0 {
-				vf = append(vf, "format=p010le")
-			}
-			if len(vf) > 0 {
-				cmd = append(cmd, "-vf", strings.Join(vf, ","))
-			}
-		}
-
-		cmd = append(cmd, "-map", videoMap(job))
-		cmd = append(cmd, videoArgs(job, false)...)
-		if job.Preset.Type != "copy" {
-			cmd = append(cmd, colorArgs(job)...)
-		}
+		cmd = append(cmd, encodeVideoArgs(job)...)
 		cmd = append(cmd, buildAudioArgs(job)...)
 		cmd = append(cmd, job.OutputPath)
 
@@ -1213,6 +1191,38 @@ type runResult struct {
 }
 
 // Esegue un job e passa ogni update (progress, step, info) alla callback. Usato da CLI e GUI.
+// Filtri, mappa e argomenti video del percorso diretto (senza inject): usati dalla codifica,
+// dall'anteprima dei preset e dalla loro prova
+func encodeVideoArgs(job Job) []string {
+	var cmd []string
+	if job.Preset.Type != "copy" {
+		vf := []string{}
+		if job.Crop != "" {
+			vf = append(vf, job.Crop)
+		}
+		if job.Preset.Scale > 0 {
+			// Scaling prima del tonemap: la parte float a 32 bit lavora su meno pixel
+			vf = append(vf, fmt.Sprintf("scale=%d:-2:flags=lanczos", job.Preset.Scale))
+		}
+		if job.ToneMap {
+			vf = append(vf, tonemapChain(job)) // termina con format=p010le (gli encoder a 8 bit convertono da sé)
+		} else if job.Preset.FilterFormat != "" {
+			vf = append(vf, "format="+job.Preset.FilterFormat)
+		} else if job.Preset.Scale > 0 && job.Preset.TenBit {
+			vf = append(vf, "format=p010le")
+		}
+		if len(vf) > 0 {
+			cmd = append(cmd, "-vf", strings.Join(vf, ","))
+		}
+	}
+	cmd = append(cmd, "-map", videoMap(job))
+	cmd = append(cmd, videoArgs(job, false)...)
+	if job.Preset.Type != "copy" {
+		cmd = append(cmd, colorArgs(job)...)
+	}
+	return cmd
+}
+
 func runJob(ctx context.Context, job Job, on func(ProgressUpdate)) runResult {
 	ch := make(chan ProgressUpdate, 100)
 	go func() {
@@ -2260,11 +2270,15 @@ func loadQueueQuiet(path string) ([]Job, []string, error) {
 	return normalizeJobs(q), warns, nil
 }
 
-// Preset riletti per ID dalla versione corrente; tonemap disattivato se manca zscale
+// Preset riletti per ID dalla versione corrente; tonemap obbligatorio con gli encoder a 8 bit,
+// disattivato se manca zscale
 func normalizeJobs(q []Job) []Job {
 	for i := range q {
 		if p, ok := Presets[q[i].Preset.ID]; ok {
 			q[i].Preset = p
+		}
+		if mustToneMap(q[i].MetaType, q[i].Preset) {
+			q[i].ToneMap = true
 		}
 		if q[i].ToneMap && !Tools.HasZscale {
 			q[i].ToneMap = false

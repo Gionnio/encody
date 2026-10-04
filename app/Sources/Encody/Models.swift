@@ -31,6 +31,9 @@ struct Caps: Decodable {
     let cvvdp: String?   // percorso di ColorVideoVDP, vuoto se non installato
     let tonemapAlgo: String
     let presets: [PresetInfo]
+    let encoders: [EncoderCap]?   // motori precedenti non li riportano
+    let presetDir: String?
+    let presetErrors: [String]?
 }
 
 struct ToolPaths: Decodable {
@@ -49,8 +52,72 @@ struct PresetInfo: Decodable, Identifiable, Hashable {
     let audioBitrate: String
     let passthrough: [String]?
     let passthroughLabel: String
+    let description: String?
+    let encoder: String?
+    let codec: String?
+    let hdr: Bool?      // conserva l'HDR (encoder a 10 bit)
+    let dynamic: Bool?  // DV / HDR10+ reinseribili
+    let builtin: Bool?
+    let spec: PresetSpec?
 
     var isCopy: Bool { type == "copy" }
+    var isBuiltin: Bool { builtin ?? true }
+}
+
+// MARK: - preset personalizzati (stesso formato JSON del motore)
+
+struct PresetRate: Codable, Hashable {
+    var mode: String          // crf | quality | bitrate
+    var value: Double?
+    var bitrate: Int?         // kbit/s
+    var maxrate: Int?         // kbit/s
+}
+
+struct PresetAudio: Codable, Hashable {
+    var bitrate: String
+    var passthrough: [String]?
+}
+
+struct PresetVerified: Codable, Hashable {
+    var at: String
+    var ffmpeg: String
+    var fps: Double
+}
+
+struct PresetSpec: Codable, Hashable {
+    var schema: Int = 1
+    var id: String
+    var name: String
+    var description: String?
+    var encoder: String
+    var rate: PresetRate
+    var speed: String?
+    var scale: Int?
+    var params: String?
+    var extra: String?
+    var audio: PresetAudio
+    var verified: PresetVerified?
+    var builtin: Bool?
+}
+
+/// Capacità di un encoder, dal motore (EncoderCap in presets.go)
+struct EncoderCap: Decodable, Hashable, Identifiable {
+    let id: String
+    let label: String
+    let codec: String
+    let hardware: Bool
+    let tenBit: Bool
+    let dynamic: Bool
+    let rateModes: [String]
+    let qualityLabel: String
+    let qualityMin: Double
+    let qualityMax: Double
+    let qualityDefault: Double
+    let lowerIsBetter: Bool
+    let speeds: [String]?
+    let speedDefault: String?
+    let paramsFlag: String?
+    let paramsHelp: String?
 }
 
 // MARK: - job (stesso formato delle code esportate dalla CLI)
@@ -144,6 +211,7 @@ struct JobPlan: Decodable {
     let audio: [PlanTrack]
     let subs: [PlanTrack]
     let canTonemap: Bool
+    let mustTonemap: Bool?  // encoder a 8 bit su sorgente HDR: solo SDR
     let canInject: Bool
     let injectBlocker: String
     let warnings: [String]

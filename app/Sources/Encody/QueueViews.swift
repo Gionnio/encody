@@ -472,7 +472,9 @@ private struct VideoSection: View {
                     if canDynamic {
                         Text(dynamicLabel).tag(DynamicRangeMode.dynamic)
                     }
-                    Text(staticLabel).tag(DynamicRangeMode.hdr)
+                    if item.plan?.mustTonemap != true {
+                        Text(staticLabel).tag(DynamicRangeMode.hdr)
+                    }
                     if canSDR {
                         Text("SDR (tonemap \(model.caps?.tonemapAlgo ?? "hable"))").tag(DynamicRangeMode.sdr)
                     }

@@ -328,7 +328,7 @@ final class AppModel {
     func defaultTonemap(for item: QueueItem) -> Bool {
         guard let p = item.probe, p.isHDR, caps?.hasZscale == true,
               let pr = preset(item.presetID), !pr.isCopy else { return false }
-        return pr.scale > 0
+        return pr.scale > 0 || pr.hdr == false // gli encoder a 8 bit non conservano l'HDR
     }
 
     private func apply(_ s: JobSpec, to item: QueueItem) {
@@ -394,6 +394,7 @@ final class AppModel {
             item.planError = nil
             // i vincoli del motore vincono sulle scelte UI
             if item.tonemap && !plan.canTonemap { item.tonemap = false }
+            if plan.mustTonemap == true && plan.canTonemap { item.tonemap = true }
             if item.doInject && !plan.canInject {
                 item.doInject = false
                 // l'inject bloccava il crop: ora si può rilevare

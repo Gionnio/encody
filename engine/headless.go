@@ -109,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
 		return 0, true
 	default:
 		return 0, false
@@ -121,6 +121,10 @@ func headlessMain(args []string) (int, bool) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	defer cleanupTmp()
+
+	if cmd == "preset" {
+		return cmdPreset(ctx, args[1:]), true // ha un sottocomando prima dei flag
+	}
 
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -203,20 +207,30 @@ func headlessMain(args []string) (int, bool) {
 // ---------- caps ----------
 
 type presetOut struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	Type             string   `json:"type"`
-	Scale            int      `json:"scale"`
-	AudioBitrate     string   `json:"audio_bitrate"`
-	Passthrough      []string `json:"passthrough"`
-	PassthroughLabel string   `json:"passthrough_label"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description"`
+	Type             string     `json:"type"`
+	Encoder          string     `json:"encoder"`
+	Codec            string     `json:"codec"`
+	Hdr              bool       `json:"hdr"`     // conserva l'HDR (10 bit)
+	Dynamic          bool       `json:"dynamic"` // DV / HDR10+ reinseribili
+	Builtin          bool       `json:"builtin"`
+	Spec             PresetSpec `json:"spec"`
+	Scale            int        `json:"scale"`
+	AudioBitrate     string     `json:"audio_bitrate"`
+	Passthrough      []string   `json:"passthrough"`
+	PassthroughLabel string     `json:"passthrough_label"`
 }
 
 func cmdCaps() int {
 	ps := []presetOut{}
 	for _, k := range sortedPresetKeys(true) {
 		p := Presets[k]
-		ps = append(ps, presetOut{ID: p.ID, Name: p.Name, Type: p.Type, Scale: p.Scale, AudioBitrate: p.AudioBitrate,
+		e, _ := encoderCap(p.Encoder)
+		ps = append(ps, presetOut{ID: p.ID, Name: p.Name, Description: p.Description, Type: p.Type, Encoder: p.Encoder,
+			Codec: p.Codec, Hdr: p.TenBit, Dynamic: p.Type == "copy" || (e.Dynamic && p.Scale == 0), Builtin: p.Builtin,
+			Spec: PresetSpecs[p.ID], Scale: p.Scale, AudioBitrate: p.AudioBitrate,
 			Passthrough: p.Passthrough, PassthroughLabel: prettyList(p.Passthrough)})
 	}
 	printJSON(map[string]any{
@@ -225,12 +239,15 @@ func cmdCaps() int {
 			"ffmpeg": Tools.FFmpeg, "ffprobe": Tools.FFprobe, "mkvmerge": Tools.MkvMerge,
 			"dovi_tool": Tools.DoviTool, "hdr10plus_tool": Tools.Hdr10PlTool,
 		},
-		"has_zscale":   Tools.HasZscale,
-		"has_vmaf":     Tools.HasVMAF,
-		"has_xpsnr":    Tools.HasXPSNR,
-		"cvvdp":        Tools.CVVDP,
-		"tonemap_algo": ToneMapAlgo,
-		"presets":      ps,
+		"has_zscale":    Tools.HasZscale,
+		"has_vmaf":      Tools.HasVMAF,
+		"encoders":      availableEncoders(),
+		"preset_dir":    userPresetsDir(),
+		"preset_errors": PresetLoadErrors,
+		"has_xpsnr":     Tools.HasXPSNR,
+		"cvvdp":         Tools.CVVDP,
+		"tonemap_algo":  ToneMapAlgo,
+		"presets":       ps,
 	})
 	return 0
 }
@@ -342,6 +359,7 @@ type planOut struct {
 	Audio         []planTrack `json:"audio"`
 	Subs          []planTrack `json:"subs"`
 	CanToneMap    bool        `json:"can_tonemap"`
+	MustToneMap   bool        `json:"must_tonemap"` // encoder a 8 bit su sorgente HDR: solo SDR
 	CanInject     bool        `json:"can_inject"`
 	InjectBlocker string      `json:"inject_blocker"`
 	Warnings      []string    `json:"warnings"`
@@ -363,6 +381,13 @@ func cmdPlan(r io.Reader) int {
 			p.Subs = append(p.Subs, planTrack{Index: s.Index, Label: trackLabel(s), Desc: subPlanDesc(s)})
 		}
 		p.CanToneMap = isHDR(j.MetaType) && j.Preset.Type != "copy" && Tools.HasZscale
+		p.MustToneMap = mustToneMap(j.MetaType, j.Preset)
+		if len(j.Preset.VideoOpts) == 0 {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("Preset %q non trovato: è stato eliminato o rinominato.", j.Preset.ID))
+		}
+		if p.MustToneMap && !Tools.HasZscale {
+			p.Warnings = append(p.Warnings, "Encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR, ma FFmpeg non lo ha.")
+		}
 		if j.MetaType == "DV" || j.MetaType == "HDR10+" {
 			p.InjectBlocker = injectBlocker(j.MetaType, j.DVProfile, j.Preset)
 			// indipendente dalla scelta SDR: la GUI deve poter offrire tutte le opzioni insieme
@@ -617,4 +642,15 @@ func cmdGrain(ctx context.Context, src string) int {
 	}
 	printJSON(g)
 	return 0
+}
+
+// Encoder dei preset presenti nel FFmpeg installato
+func availableEncoders() []EncoderCap {
+	out := []EncoderCap{}
+	for _, e := range Encoders {
+		if len(Tools.Encoders) == 0 || Tools.Encoders[e.ID] {
+			out = append(out, e)
+		}
+	}
+	return out
 }
