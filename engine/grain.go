@@ -6,7 +6,7 @@
 // (cielo, pareti): lì il dettaglio vero non c'è e resta solo la grana. Si considerano solo i
 // mezzitoni, così bande nere, ombre profonde e luci bruciate non falsano la misura.
 // Indice = mediana sui frame, in codici a 10 bit. Tarato su L'Impero colpisce ancora (BDRemux, 2,8)
-// e Loki (WEB-DL x265, 0,4–0,7).
+// e Loki (WEB-DL x265, 0,4–0,7). Sotto i 720p non si misura.
 package main
 
 import (
@@ -26,7 +26,8 @@ import (
 const (
 	grainPoints     = 15
 	grainBlock      = 16
-	grainVersion    = 1
+	grainVersion    = 2 // 2: niente misura sotto i 720p
+	grainMinHeight  = 720
 	GrainMediumFrom = 1.0 // sotto: grana bassa
 	GrainHighFrom   = 2.0
 )
@@ -36,6 +37,7 @@ type GrainResult struct {
 	Index   float64 `json:"index"`
 	Level   string  `json:"level"` // low | medium | high
 	Points  int     `json:"points"`
+	Skipped bool    `json:"skipped,omitempty"` // risoluzione troppo bassa: non misurata
 }
 
 func grainLevel(v float64) string {
@@ -62,6 +64,11 @@ func measureGrain(ctx context.Context, src string, info *MediaInfo) (GrainResult
 				return g, nil
 			}
 		}
+	}
+	// Sotto i 720p la grana di pellicola non si distingue dagli artefatti di compressione
+	// (Big Buck Bunny 320×180, un cartone animato, risultava "grana alta"): non si misura
+	if info.Height > 0 && info.Height < grainMinHeight {
+		return GrainResult{Version: grainVersion, Level: "low", Skipped: true}, nil
 	}
 	if info.Width <= 0 || info.Height <= 0 || info.Duration <= 0 {
 		return GrainResult{}, errors.New(T("dimensioni o durata del video sconosciute"))
