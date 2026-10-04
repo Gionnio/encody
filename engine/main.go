@@ -88,6 +88,7 @@ type ToolPaths struct {
 	HasXPSNR    bool
 	CVVDP       string // ColorVideoVDP (Python/PyTorch), facoltativo
 	Encoders    map[string]bool
+	FFmpegVer   string
 }
 
 // Preset pronto per l'uso, compilato da una PresetSpec (presets.go)
@@ -195,6 +196,12 @@ func checkDeps(quiet bool) {
 			if f := strings.Fields(l); len(f) >= 2 && strings.HasPrefix(f[0], "V") {
 				Tools.Encoders[f[1]] = true
 			}
+		}
+	}
+	if out, err := exec.Command(Tools.FFmpeg, "-hide_banner", "-version").Output(); err == nil {
+		// "ffmpeg version 9.0.2 Copyright …"
+		if f := strings.Fields(string(out)); len(f) >= 3 && f[1] == "version" {
+			Tools.FFmpegVer = f[2]
 		}
 	}
 	loadUserPresets()

@@ -15,6 +15,7 @@
 ## ✨ Features
 - **Batch Queue:** Drag & drop files or folders, enable/disable items, reorder, clear finished or pending items, import/export the queue as JSON (the same format as the CLI).
 - **Presets:** Remux (copy video), 4K/1080p VideoToolbox, 4K x265 CPU, 4K high bitrate VBR, and two x265 presets for grainy films.
+- **Custom Presets:** Create presets with x265, x264, SVT-AV1 or VideoToolbox (HEVC/H.264): quality, speed, resolution, encoder parameters, extra FFmpeg options and audio defaults. Every change is checked live (ranges, incompatible options, options reserved to Encody) and a preset is saved only after a real 3-second test encode passes: accepted parameters (x265 and SVT-AV1 silently ignore wrong ones), codec, bit depth, colour tags, HDR10 metadata and clean decoding. Import/export as JSON.
 - **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check (kept by default for new files, switchable to HDR10 only); optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
@@ -93,6 +94,8 @@ The app contains no encoding logic: it runs the engine headless and reads its JS
 | `encody plan < queue.json` | per job: video description, audio plan, tonemap/inject constraints, warnings |
 | `encody run [--test] <queue.json>` | NDJSON: queue_start, job_start, step, progress, info, job_done, queue_done |
 | `encody segments <file>` | NDJSON: step, progress, segments (start, luma, bitrate, thumbnail); cached in `~/Library/Caches/Encody` |
+| `encody preset validate [--spec f.json] < preset.json` | issues and an example FFmpeg command |
+| `encody preset test [--sample file] [--spec f.json]` | NDJSON: step, preset_test (checks, fps, bitrate) |
 | `encody grain <file>` | `{"index": 2.82, "level": "high", "points": 15}` (cached) |
 | `encody thumb --at T <file>` | `{"thumb": "…jpg"}` for a sample starting at T seconds |
 | `encody bench --presets 1,3 [--metric auto\|vmaf\|xpsnr\|cvvdp] [--segments t1,t2,t3] <file>` | NDJSON: bench_start, bench_preset_start, progress, bench_result, bench_done |
@@ -103,7 +106,7 @@ Flags go before positional arguments. SIGINT stops cleanly (temporary and partia
 ## 🚧 Roadmap & TODO
 
 * [ ] **English UI:** The interface is Italian only for now.
-* [ ] **Custom Presets:** Edit and save encoding presets from the app.
+* [x] **Custom Presets:** Edit, test and save encoding presets from the app.
 * [x] **HDR Quality Metrics:** XPSNR and ColorVideoVDP.
 
 ## Privacy & Security

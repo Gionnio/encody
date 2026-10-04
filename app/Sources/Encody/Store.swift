@@ -5,13 +5,14 @@ import UniformTypeIdentifiers
 import UserNotifications
 
 enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
-    case queue, bench, quality
+    case queue, bench, quality, presets
     var id: Self { self }
     var title: String {
         switch self {
         case .queue: "Coda"
         case .bench: "Benchmark"
         case .quality: "Check Qualità"
+        case .presets: "Preset"
         }
     }
     var icon: String {
@@ -19,6 +20,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .queue: "list.bullet.rectangle"
         case .bench: "gauge.with.dots.needle.67percent"
         case .quality: "checkmark.seal"
+        case .presets: "slider.horizontal.3"
         }
     }
 }
@@ -180,6 +182,7 @@ final class AppModel {
 
     let bench = BenchModel()
     let quality = QualityModel()
+    let presetsModel = PresetsModel()
 
     @ObservationIgnored private var run: EngineRun?
     @ObservationIgnored private var runningItems: [QueueItem] = []
@@ -194,6 +197,7 @@ final class AppModel {
         outputDirPath = saved.isEmpty
             ? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Movies").path
             : saved
+        presetsModel.app = self
     }
 
     var outputDir: URL { URL(fileURLWithPath: (outputDirPath as NSString).expandingTildeInPath, isDirectory: true) }

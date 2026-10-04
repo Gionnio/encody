@@ -1,7 +1,9 @@
 // Comandi dei preset per l'app:
 //
-//	encody preset validate < spec.json            → JSON: problemi, anteprima del comando
-//	encody preset test [--sample file] < spec.json → NDJSON: step, progress, preset_test
+//	encody preset validate [--spec f.json] < spec.json            → JSON: problemi, anteprima del comando
+//	encody preset test [--sample file] [--spec f.json] < spec.json → NDJSON: step, preset_test
+//
+// Il preset arriva da stdin oppure da --spec (l'app lancia i comandi a eventi senza stdin).
 //
 // La prova codifica 3 s (da un file dell'utente o da un clip 4K HDR10 generato) e controlla che
 // FFmpeg accetti tutti i parametri (x265 e SVT-AV1 ignorano in silenzio quelli sbagliati, quindi si
@@ -34,11 +36,21 @@ func cmdPreset(ctx context.Context, args []string) int {
 	fs := flag.NewFlagSet("preset", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	sample := fs.String("sample", "", "")
+	specFile := fs.String("spec", "", "")
 	if err := fs.Parse(args[1:]); err != nil {
 		return fail(fmt.Errorf("argomenti non validi: %w", err))
 	}
+	var in io.Reader = os.Stdin
+	if *specFile != "" {
+		f, err := os.Open(cleanPath(*specFile))
+		if err != nil {
+			return fail(err)
+		}
+		defer f.Close()
+		in = f
+	}
 	var spec PresetSpec
-	if err := json.NewDecoder(os.Stdin).Decode(&spec); err != nil {
+	if err := json.NewDecoder(in).Decode(&spec); err != nil {
 		return fail(fmt.Errorf("preset JSON non valido: %w", err))
 	}
 	if spec.Schema == 0 {
@@ -179,7 +191,7 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	for _, c := range checks {
 		ok = ok && c.Level != "error"
 	}
-	result["ok"] = ok
+	result["passed"] = ok
 	result["checks"] = checks
 	result["sample"] = map[bool]string{true: filepath.Base(sample), false: "clip 4K HDR10 generato"}[sample != ""]
 	emit("preset_test", result)

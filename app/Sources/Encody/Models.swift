@@ -32,6 +32,7 @@ struct Caps: Decodable {
     let tonemapAlgo: String
     let presets: [PresetInfo]
     let encoders: [EncoderCap]?   // motori precedenti non li riportano
+    let ffmpegVersion: String?
     let presetDir: String?
     let presetErrors: [String]?
 }
@@ -312,6 +313,11 @@ struct EngineEvent: Decodable, Sendable {
     let segments: [BenchSegmentInfo]?
     let segmentSeconds: Double?
     let duration: Double?
+    // prova dei preset
+    let passed: Bool?
+    let checks: [PresetTestCheck]?
+    let bitrateKbps: Double?
+    let sample: String?
     // quality
     let metric: String?
     let value: Double?

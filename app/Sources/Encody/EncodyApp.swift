@@ -84,6 +84,7 @@ struct ContentView: View {
             case .queue: QueueView()
             case .bench: BenchmarkView()
             case .quality: QualityView()
+            case .presets: PresetsView()
             }
         }
         .task { await model.loadCaps() }
@@ -94,6 +95,7 @@ struct ContentView: View {
         case .queue: model.enabledCount
         case .bench: model.bench.isRunning ? 1 : 0
         case .quality: model.quality.isRunning ? 1 : 0
+        case .presets: 0
         }
     }
 }
