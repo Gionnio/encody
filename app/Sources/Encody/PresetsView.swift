@@ -130,8 +130,9 @@ private struct PresetRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(name).lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                // nomi lunghi su due righe invece di troncarli
+                Text(name).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 if unsaved { Circle().fill(.orange).frame(width: 6, height: 6).help("Modifiche non salvate") }
                 Spacer(minLength: 4)
                 if verified {
@@ -145,10 +146,10 @@ private struct PresetRow: View {
 }
 
 enum PresetText {
-    static func summary(_ s: PresetSpec, encoders: [EncoderCap]) -> String {
+    static func summary(_ s: PresetSpec, encoders: [EncoderCap], withEncoder: Bool = true) -> String {
         if s.encoder == "copy" { return "Remux: video copiato" }
         let e = encoders.first { $0.id == s.encoder }
-        var parts = [shortName(s.encoder)]
+        var parts = withEncoder ? [shortName(s.encoder)] : []
         switch s.rate.mode {
         case "bitrate": parts.append("\(s.rate.bitrate ?? 0) kbit/s")
         default: parts.append("\(e?.qualityLabel ?? "Q") \(format(s.rate.value ?? 0))")
@@ -191,7 +192,7 @@ private struct BuiltinPresetView: View {
                 Section("Impostazioni") {
                     LabeledContent("Encoder", value: PresetText.shortName(s.encoder))
                     if s.encoder != "copy" {
-                        LabeledContent("Qualità", value: PresetText.summary(s, encoders: model.caps?.encoders ?? []))
+                        LabeledContent("Qualità", value: PresetText.summary(s, encoders: model.caps?.encoders ?? [], withEncoder: false))
                     }
                     if let p = s.params, !p.isEmpty {
                         LabeledContent("Parametri encoder") { Text(p).font(.caption.monospaced()).textSelection(.enabled) }
