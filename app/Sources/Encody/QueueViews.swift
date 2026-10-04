@@ -138,21 +138,35 @@ struct QueueListView: View {
     @ViewBuilder
     private func selectionMenu(_ ids: Set<UUID>) -> some View {
         let sel = model.items.filter { ids.contains($0.id) }
+        // completati e in lavorazione non si modificano: per loro niente attiva/preset/audio
+        let editable = sel.filter { $0.status != .done && !$0.isLocked }
+        let done = sel.filter { $0.status == .done }
         if !sel.isEmpty {
-            Button("Attiva") { model.setEnabled(true, ids: ids) }
-            Button("Disattiva") { model.setEnabled(false, ids: ids) }
-            Divider()
-            Menu("Preset") {
-                ForEach(model.presets) { p in
-                    Button(p.name) { model.applyPreset(p.id, to: ids) }
+            if !done.isEmpty {
+                Button(done.count == 1 ? "Rimetti in coda" : "Rimetti in coda \(done.count) file") {
+                    model.requeue(ids: Set(done.map(\.id)))
                 }
+                .disabled(model.isRunning)
+                .help("Torna da fare con le stesse impostazioni, modificabili; il nuovo output non sovrascrive quello fatto")
+                Divider()
             }
-            Menu("Audio") {
-                Button("Pass") { model.applyAudioMode("copy", to: ids) }
-                Button("E-AC3 Smart") { model.applyAudioMode("eac3", to: ids) }
-                Button("Stereo AAC") { model.applyAudioMode("aac", to: ids) }
+            if !editable.isEmpty {
+                let editIDs = Set(editable.map(\.id))
+                Button("Attiva") { model.setEnabled(true, ids: editIDs) }
+                Button("Disattiva") { model.setEnabled(false, ids: editIDs) }
+                Divider()
+                Menu("Preset") {
+                    ForEach(model.presets) { p in
+                        Button(p.name) { model.applyPreset(p.id, to: editIDs) }
+                    }
+                }
+                Menu("Audio") {
+                    Button("Pass") { model.applyAudioMode("copy", to: editIDs) }
+                    Button("E-AC3 Smart") { model.applyAudioMode("eac3", to: editIDs) }
+                    Button("Stereo AAC") { model.applyAudioMode("aac", to: editIDs) }
+                }
+                Divider()
             }
-            Divider()
             if sel.count == 1, let item = sel.first {
                 Button("Mostra originale nel Finder") { model.reveal(item.url) }
                 if item.status == .done {

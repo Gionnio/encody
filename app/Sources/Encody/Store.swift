@@ -422,6 +422,22 @@ final class AppModel {
 
     func removeSelected() { remove(ids: selection) }
 
+    /// Completati di nuovo da fare: stesse impostazioni (modificabili), output nuovo per non
+    /// sovrascrivere quello appena fatto
+    func requeue(ids: Set<UUID>) {
+        guard !isRunning else { return }
+        for it in items where ids.contains(it.id) && it.status == .done {
+            it.status = .ready
+            it.result = nil
+            it.percent = 0
+            it.step = ""
+            it.elapsed = 0
+            it.errorMessage = nil
+            it.enabled = true
+            it.outputURL = uniqueOutput(for: it.url, dir: it.customOutput ? it.outputURL.deletingLastPathComponent() : nil)
+        }
+    }
+
     func clearFinished() {
         remove(ids: Set(items.filter { $0.status == .done || $0.status == .invalid }.map(\.id)))
     }
