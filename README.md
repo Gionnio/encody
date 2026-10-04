@@ -30,24 +30,48 @@
 - **Multi-language:** Native support for Italian 🇮🇹 and English 🇬🇧 (system language or chosen in Settings), engine messages included.
 
 ## 🚀 Requirements
-- macOS 14 (Sonoma) or later.
-- [FFmpeg](https://ffmpeg.org) 7.1+ with `zscale` and `libvmaf` (`brew install ffmpeg`).
-- Optional: [MKVToolNix](https://mkvtoolnix.download), `dovi_tool`, `hdr10plus_tool` for dynamic HDR metadata.
+- macOS 14 (Sonoma) or later, Apple Silicon.
+- [FFmpeg](https://ffmpeg.org) 7.1 or later. Encody checks what your FFmpeg supports and disables only what is missing:
+  - `brew install ffmpeg` (Homebrew core) includes x265, x264, SVT-AV1, libvmaf and XPSNR, but **not zscale**, so HDR→SDR conversion is unavailable.
+  - For everything, including HDR→SDR conversion, use the [homebrew-ffmpeg](https://github.com/homebrew-ffmpeg/homebrew-ffmpeg) tap:
+    ```bash
+    brew tap homebrew-ffmpeg/ffmpeg
+    brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-zimg --with-libvmaf
+    ```
+- Optional, to keep Dolby Vision and HDR10+ when re-encoding: `brew install mkvtoolnix dovi_tool hdr10plus_tool`.
 - Optional: Python 3.10+ for ColorVideoVDP (installed from **Settings → Install ColorVideoVDP**, about 1 GB with PyTorch).
 
 ---
 
-## 📥 Installation
-
-Encody is a private app and is built from source:
+## 🍺 Installation via Homebrew (Recommended)
 
 ```bash
-./build_app.sh --install
+brew install --cask gionnio/tap/encody
 ```
 
-### ⚠️ How to open the app
+### 🔄 Updating
 
-The app is signed only locally (ad-hoc), not with a paid Apple Developer ID. If macOS blocks the first launch, **right-click** the `Encody` icon, choose **Open**, then **Open** again.
+```bash
+brew upgrade --cask encody
+```
+
+---
+
+## 📥 Manual Installation (Pre-built App)
+
+1. Go to the **[Releases](../../releases)** section of this page.
+2. Download the latest `.zip` file (e.g., `Encody_v1.0.0.zip`).
+3. Unzip the file and move `Encody.app` to your **Applications** folder.
+
+### ⚠️ Important: How to open the app
+
+Encody is not signed with a paid Apple Developer ID, so macOS may block the first launch with a security warning ("Apple could not verify…").
+
+**To open it:**
+
+1. Try to open `Encody` once and close the warning.
+2. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the Encody message.
+3. Confirm with **Open**. From then on it opens normally.
 
 ## 🛠 Build from Source
 
@@ -109,6 +133,7 @@ Flags go before positional arguments. SIGINT stops cleanly (temporary and partia
 * [x] **English UI:** Italian and English, engine messages included.
 * [x] **Custom Presets:** Edit, test and save encoding presets from the app.
 * [x] **HDR Quality Metrics:** XPSNR and ColorVideoVDP.
+* [x] **Homebrew Support:** Install and update via `brew install --cask gionnio/tap/encody`.
 
 ## Privacy & Security
 
