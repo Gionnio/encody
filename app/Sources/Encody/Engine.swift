@@ -44,6 +44,8 @@ enum Engine {
                   "\(home)/.cargo/bin", "\(home)/go/bin"]
         paths += (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
         env["PATH"] = paths.joined(separator: ":")
+        // messaggi del motore nella stessa lingua dell'app
+        env["ENCODY_LANG"] = Bundle.main.preferredLocalizations.first == "en" ? "en" : "it"
         return env
     }
 
@@ -69,7 +71,7 @@ enum Engine {
     /// Comandi a risposta singola (caps, probe, crop, plan)
     static func runJSON(_ args: [String], stdin: Data? = nil) async throws -> Data {
         guard let bin = binaryURL() else {
-            throw EngineError(message: "Motore encody non trovato. Impostane il percorso nelle Impostazioni.")
+            throw EngineError(message: String(localized: "Motore encody non trovato. Impostane il percorso nelle Impostazioni."))
         }
         let env = environment
         return try await withCheckedThrowingContinuation { cont in
@@ -111,7 +113,7 @@ enum Engine {
                 struct ErrOut: Decodable { let error: String }
                 let msg = (try? JSONDecoder().decode(ErrOut.self, from: data))?.error
                     ?? String(decoding: errData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-                cont.resume(throwing: EngineError(message: msg.isEmpty ? "encody terminato con codice \(p.terminationStatus)" : msg))
+                cont.resume(throwing: EngineError(message: msg.isEmpty ? String(localized: "encody terminato con codice \(p.terminationStatus)") : msg))
             }
         }
     }
@@ -151,7 +153,7 @@ final class EngineRun {
     func start(onEvent: @escaping @MainActor (EngineEvent) -> Void,
                onExit: @escaping @MainActor (Int32, String) -> Void) throws {
         guard let bin = Engine.binaryURL() else {
-            throw EngineError(message: "Motore encody non trovato. Impostane il percorso nelle Impostazioni.")
+            throw EngineError(message: String(localized: "Motore encody non trovato. Impostane il percorso nelle Impostazioni."))
         }
         process.executableURL = bin
         process.arguments = arguments

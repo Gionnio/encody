@@ -9,9 +9,9 @@ enum DockStyle: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .percent: "Percentuale e barra"
-        case .files: "File completati"
-        case .off: "Niente"
+        case .percent: String(localized: "Percentuale e barra")
+        case .files: String(localized: "File completati")
+        case .off: String(localized: "Niente")
         }
     }
 

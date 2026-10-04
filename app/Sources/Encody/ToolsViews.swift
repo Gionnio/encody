@@ -10,7 +10,7 @@ struct BenchmarkView: View {
         @Bindable var bench = model.bench
         Form {
             Section("Sorgente") {
-                FilePickRow(title: "File video", url: bench.fileURL) { url in
+                FilePickRow(title: String(localized: "File video"), url: bench.fileURL) { url in
                     Task { await bench.setFile(url) }
                 }
                 if let p = bench.probe {
@@ -97,8 +97,8 @@ struct BenchmarkView: View {
                 Text("Esecuzione")
             } footer: {
                 Text(bench.metric == .cvvdp
-                     ? "Si codificano gli spezzoni scelti sopra, solo video. ColorVideoVDP ne analizza 8 s in tutto, divisi tra gli spezzoni. La dimensione è stimata sull'intera durata."
-                     : "Si codificano gli spezzoni scelti sopra, solo video. La dimensione è stimata sull'intera durata.")
+                     ? String(localized: "Si codificano gli spezzoni scelti sopra, solo video. ColorVideoVDP ne analizza 8 s in tutto, divisi tra gli spezzoni. La dimensione è stimata sull'intera durata.")
+                     : String(localized: "Si codificano gli spezzoni scelti sopra, solo video. La dimensione è stimata sull'intera durata."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -114,7 +114,7 @@ struct BenchmarkView: View {
     private func progressTitle(_ b: BenchModel) -> String {
         var s = ""
         if !b.currentName.isEmpty { s += "[\(b.index)/\(b.total)] \(b.currentName) · " }
-        return s + (b.step.isEmpty ? "Preparazione" : b.step)
+        return s + (b.step.isEmpty ? String(localized: "Preparazione") : b.step)
     }
 }
 
@@ -127,7 +127,7 @@ private struct BenchSegmentsSection: View {
         Section {
             if bench.isAnalyzing && bench.segments.isEmpty {
                 ProgressView(value: min(bench.analysisPercent, 100), total: 100) {
-                    Text(bench.analysisStep.isEmpty ? "Analisi del file" : bench.analysisStep)
+                    Text(bench.analysisStep.isEmpty ? String(localized: "Analisi del file") : bench.analysisStep)
                 } currentValueLabel: {
                     Text(String(format: "%.0f%%", bench.analysisPercent)).monospacedDigit()
                 }
@@ -165,8 +165,8 @@ private struct BenchSegmentsSection: View {
     }
 
     private func zoneLabel(_ i: Int) -> String {
-        guard bench.segments.count == 3 else { return "Centro" }
-        return ["Inizio", "Centro", "Fine"][i]
+        guard bench.segments.count == 3 else { return String(localized: "Centro") }
+        return [String(localized: "Inizio"), String(localized: "Centro"), String(localized: "Fine")][i]
     }
 }
 
@@ -183,7 +183,7 @@ private struct SegmentRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(zone).font(.headline)
-                    if segment.isManual { Chip("manuale") }
+                    if segment.isManual { Chip(String(localized: "manuale")) }
                 }
                 HStack(spacing: 6) {
                     Text("Inizio")
@@ -199,7 +199,7 @@ private struct SegmentRow: View {
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 6) {
-                    if let l = segment.luma { Chip("luminosità \(Int((l * 100).rounded()))%") }
+                    if let l = segment.luma { Chip(String(localized: "luminosità \(Int((l * 100).rounded()))%")) }
                     if let b = segment.bitrate, let s = Fmt.bitrate(b) { Chip(s) }
                 }
                 if let n = segment.note {
@@ -334,8 +334,8 @@ struct QualityView: View {
                 Text("Metrica")
             } footer: {
                 Text(q.metric == .cvvdp
-                     ? "Il file encodato viene riportato alla risoluzione dell'originale. ColorVideoVDP analizza 10 s dal centro del file. Con un crop applicato il confronto non è attendibile."
-                     : "Il file encodato viene riportato alla risoluzione dell'originale. Con un crop applicato il confronto non è attendibile.")
+                     ? String(localized: "Il file encodato viene riportato alla risoluzione dell'originale. ColorVideoVDP analizza 10 s dal centro del file. Con un crop applicato il confronto non è attendibile.")
+                     : String(localized: "Il file encodato viene riportato alla risoluzione dell'originale. Con un crop applicato il confronto non è attendibile."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -353,7 +353,7 @@ struct QualityView: View {
                 }
                 if q.isRunning {
                     ProgressView(value: min(q.percent, 100), total: 100) {
-                        Text(q.step.isEmpty ? "Preparazione" : q.step)
+                        Text(q.step.isEmpty ? String(localized: "Preparazione") : q.step)
                     } currentValueLabel: {
                         Text(String(format: "%.0f%% · %.1f fps", q.percent, q.fps)).monospacedDigit()
                     }

@@ -27,6 +27,7 @@
 - **HDR Quality Metrics:** XPSNR (10-bit, built into FFmpeg) and ColorVideoVDP (perceptual model with a PQ/HLG display, GPU accelerated) instead of the SDR-only VMAF model.
 - **CLI Included:** The bundled `encody` engine also works from the Terminal (interactive menu or headless JSON commands).
 - **Appearance:** System, Light and Dark themes.
+- **Multi-language:** Native support for Italian 🇮🇹 and English 🇬🇧 (system language or chosen in Settings), engine messages included.
 
 ## 🚀 Requirements
 - macOS 14 (Sonoma) or later.
@@ -105,7 +106,7 @@ Flags go before positional arguments. SIGINT stops cleanly (temporary and partia
 
 ## 🚧 Roadmap & TODO
 
-* [ ] **English UI:** The interface is Italian only for now.
+* [x] **English UI:** Italian and English, engine messages included.
 * [x] **Custom Presets:** Edit, test and save encoding presets from the app.
 * [x] **HDR Quality Metrics:** XPSNR and ColorVideoVDP.
 

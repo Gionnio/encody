@@ -46,22 +46,22 @@ type EncoderCap struct {
 var x26xSpeeds = []string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}
 
 var Encoders = []EncoderCap{
-	{ID: "libx265", Label: "x265 (HEVC, CPU)", Codec: "hevc", TenBit: true, Dynamic: true,
+	{ID: "libx265", Label: T("x265 (HEVC, CPU)"), Codec: "hevc", TenBit: true, Dynamic: true,
 		RateModes: []string{"crf", "bitrate"}, QualityLabel: "CRF", QualityMin: 0, QualityMax: 51, QualityDef: 18, LowerBetter: true,
 		Speeds: x26xSpeeds, SpeedDef: "medium", ParamsFlag: "-x265-params",
-		ParamsHelp: "chiave=valore separati da \":\", es. psy-rd=2:aq-mode=3"},
-	{ID: "hevc_videotoolbox", Label: "VideoToolbox HEVC (GPU Apple)", Codec: "hevc", Hardware: true, TenBit: true, Dynamic: true,
-		RateModes: []string{"quality", "bitrate"}, QualityLabel: "Qualità", QualityMin: 1, QualityMax: 100, QualityDef: 65},
-	{ID: "libsvtav1", Label: "SVT-AV1 (AV1, CPU)", Codec: "av1", TenBit: true,
+		ParamsHelp: T("chiave=valore separati da \":\", es. psy-rd=2:aq-mode=3")},
+	{ID: "hevc_videotoolbox", Label: T("VideoToolbox HEVC (GPU Apple)"), Codec: "hevc", Hardware: true, TenBit: true, Dynamic: true,
+		RateModes: []string{"quality", "bitrate"}, QualityLabel: T("Qualità"), QualityMin: 1, QualityMax: 100, QualityDef: 65},
+	{ID: "libsvtav1", Label: T("SVT-AV1 (AV1, CPU)"), Codec: "av1", TenBit: true,
 		RateModes: []string{"crf", "bitrate"}, QualityLabel: "CRF", QualityMin: 0, QualityMax: 63, QualityDef: 28, LowerBetter: true,
 		Speeds: []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"}, SpeedDef: "6",
-		ParamsFlag: "-svtav1-params", ParamsHelp: "chiave=valore separati da \":\", es. tune=0:film-grain=8"},
-	{ID: "libx264", Label: "x264 (H.264, CPU, solo SDR)", Codec: "h264",
+		ParamsFlag: "-svtav1-params", ParamsHelp: T("chiave=valore separati da \":\", es. tune=0:film-grain=8")},
+	{ID: "libx264", Label: T("x264 (H.264, CPU, solo SDR)"), Codec: "h264",
 		RateModes: []string{"crf", "bitrate"}, QualityLabel: "CRF", QualityMin: 0, QualityMax: 51, QualityDef: 18, LowerBetter: true,
 		Speeds: x26xSpeeds, SpeedDef: "medium", ParamsFlag: "-x264-params",
-		ParamsHelp: "chiave=valore separati da \":\", es. aq-mode=3:psy-rd=1.0,0.15"},
-	{ID: "h264_videotoolbox", Label: "VideoToolbox H.264 (GPU Apple, solo SDR)", Codec: "h264", Hardware: true,
-		RateModes: []string{"quality", "bitrate"}, QualityLabel: "Qualità", QualityMin: 1, QualityMax: 100, QualityDef: 65},
+		ParamsHelp: T("chiave=valore separati da \":\", es. aq-mode=3:psy-rd=1.0,0.15")},
+	{ID: "h264_videotoolbox", Label: T("VideoToolbox H.264 (GPU Apple, solo SDR)"), Codec: "h264", Hardware: true,
+		RateModes: []string{"quality", "bitrate"}, QualityLabel: T("Qualità"), QualityMin: 1, QualityMax: 100, QualityDef: 65},
 }
 
 func encoderCap(id string) (EncoderCap, bool) {
@@ -121,23 +121,23 @@ const grainX265Params = "no-sao=1:aq-mode=3:aq-strength=0.8:psy-rd=3:psy-rdoq=10
 	"rskip=2:rskip-edge-threshold=2:strong-intra-smoothing=0"
 
 var builtinSpecs = []PresetSpec{
-	{ID: "0", Name: "Remux (Copia Video - Audio/Sub Only)", Encoder: "copy",
-		Description: "Video copiato così com'è (HDR, DV e HDR10+ inclusi); si cambiano solo audio e sottotitoli.",
+	{ID: "0", Name: T("Remux (Copia Video - Audio/Sub Only)"), Encoder: "copy",
+		Description: T("Video copiato così com'è (HDR, DV e HDR10+ inclusi); si cambiano solo audio e sottotitoli."),
 		Audio:       PresetAudio{Bitrate: "320k"}},
-	{ID: "1", Name: "4K VideoToolbox (CQ 65)", Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "quality", Value: 65},
-		Description: "Veloce, con la GPU del Mac.", Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
-	{ID: "2", Name: "1080p VideoToolbox (CQ 65)", Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "quality", Value: 65}, Scale: 1920,
-		Description: "Ridotto a 1080p per la compatibilità.", Audio: PresetAudio{Bitrate: "256k", Passthrough: []string{"aac", "ac3", "eac3", "dts", "truehd"}}},
-	{ID: "3", Name: "4K CPU x265 (Medium - CRF 18)", Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 18}, Speed: "medium",
-		Params: "sao=0:aq-mode=2", Description: "Il miglior rapporto qualità/dimensione per materiale pulito.",
+	{ID: "1", Name: T("4K VideoToolbox (CQ 65)"), Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "quality", Value: 65},
+		Description: T("Veloce, con la GPU del Mac."), Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
+	{ID: "2", Name: T("1080p VideoToolbox (CQ 65)"), Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "quality", Value: 65}, Scale: 1920,
+		Description: T("Ridotto a 1080p per la compatibilità."), Audio: PresetAudio{Bitrate: "256k", Passthrough: []string{"aac", "ac3", "eac3", "dts", "truehd"}}},
+	{ID: "3", Name: T("4K CPU x265 (Medium - CRF 18)"), Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 18}, Speed: "medium",
+		Params: "sao=0:aq-mode=2", Description: T("Il miglior rapporto qualità/dimensione per materiale pulito."),
 		Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
-	{ID: "4", Name: "4K High Bitrate VBR (24Mbps)", Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "bitrate", Bitrate: 24000, Maxrate: 35000},
-		Description: "Bitrate fisso alto con la GPU del Mac.", Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
-	{ID: "5", Name: "4K CPU x265 Grana (Slow - CRF 17)", Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 17}, Speed: "slow",
-		Params: grainX265Params, Description: "Film con grana: la conserva al 75–87%. Lento.",
+	{ID: "4", Name: T("4K High Bitrate VBR (24Mbps)"), Encoder: "hevc_videotoolbox", Rate: PresetRate{Mode: "bitrate", Bitrate: 24000, Maxrate: 35000},
+		Description: T("Bitrate fisso alto con la GPU del Mac."), Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
+	{ID: "5", Name: T("4K CPU x265 Grana (Slow - CRF 17)"), Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 17}, Speed: "slow",
+		Params: grainX265Params, Description: T("Film con grana: la conserva al 75–87%. Lento."),
 		Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
-	{ID: "6", Name: "4K CPU x265 Grana veloce (Medium - CRF 17)", Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 17}, Speed: "medium",
-		Params: grainX265Params, Description: "Film con grana, più veloce: la conserva al 58–81%.",
+	{ID: "6", Name: T("4K CPU x265 Grana veloce (Medium - CRF 17)"), Encoder: "libx265", Rate: PresetRate{Mode: "crf", Value: 17}, Speed: "medium",
+		Params: grainX265Params, Description: T("Film con grana, più veloce: la conserva al 58–81%."),
 		Audio: PresetAudio{Bitrate: "320k", Passthrough: fullPass}},
 }
 
@@ -156,7 +156,7 @@ func init() {
 		s.Builtin = true
 		p, err := compileSpec(s)
 		if err != nil {
-			panic(fmt.Sprintf("preset di sistema %s non valido: %v", s.ID, err))
+			panic(fmt.Sprintf(T("preset di sistema %s non valido: %v"), s.ID, err))
 		}
 		Presets[s.ID] = p
 		PresetSpecs[s.ID] = s
@@ -187,21 +187,21 @@ func loadUserPresets() {
 		}
 		var s PresetSpec
 		if err := json.Unmarshal(data, &s); err != nil {
-			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf("%s: JSON non valido (%v)", filepath.Base(f), err))
+			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf(T("%s: JSON non valido (%v)"), filepath.Base(f), err))
 			continue
 		}
 		s.Builtin = false
 		if _, clash := PresetSpecs[s.ID]; clash || s.ID == "" {
-			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf("%s: ID mancante o già usato", filepath.Base(f)))
+			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf(T("%s: ID mancante o già usato"), filepath.Base(f)))
 			continue
 		}
 		if issues := validateSpec(s); hasErrors(issues) {
-			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf("%s: %s", filepath.Base(f), firstError(issues)))
+			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf(T("%s: %s"), filepath.Base(f), firstError(issues)))
 			continue
 		}
 		p, err := compileSpec(s)
 		if err != nil {
-			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf("%s: %v", filepath.Base(f), err))
+			PresetLoadErrors = append(PresetLoadErrors, fmt.Sprintf(T("%s: %v"), filepath.Base(f), err))
 			continue
 		}
 		Presets[s.ID] = p
@@ -224,7 +224,7 @@ func compileSpec(s PresetSpec) (Preset, error) {
 	}
 	e, ok := encoderCap(s.Encoder)
 	if !ok {
-		return Preset{}, fmt.Errorf("encoder sconosciuto: %s", s.Encoder)
+		return Preset{}, fmt.Errorf(T("encoder sconosciuto: %s"), s.Encoder)
 	}
 	p.Codec, p.TenBit = e.Codec, e.TenBit
 	p.Type = "cpu"
@@ -288,7 +288,7 @@ func compileSpec(s PresetSpec) (Preset, error) {
 	}
 	extra, err := splitArgs(s.Extra)
 	if err != nil {
-		return Preset{}, fmt.Errorf("parametri extra: %w", err)
+		return Preset{}, fmt.Errorf(T("parametri extra: %w"), err)
 	}
 	p.VideoOpts = append(o, extra...)
 	return p, nil
@@ -328,7 +328,7 @@ func splitArgs(s string) ([]string, error) {
 		}
 	}
 	if quote != 0 {
-		return nil, errors.New("apice non chiuso")
+		return nil, errors.New(T("apice non chiuso"))
 	}
 	if inToken {
 		out = append(out, cur.String())
@@ -364,19 +364,19 @@ func firstError(is []PresetIssue) string {
 
 // Opzioni che il motore gestisce da sé: nei parametri extra non sono ammesse
 var reservedArgs = map[string]string{
-	"-i": "l'input", "-map": "la scelta delle tracce", "-map_metadata": "i metadati", "-map_chapters": "i capitoli",
-	"-c": "i codec", "-codec": "i codec", "-c:v": "l'encoder", "-vcodec": "l'encoder", "-codec:v": "l'encoder",
-	"-c:a": "l'audio", "-acodec": "l'audio", "-codec:a": "l'audio", "-b:a": "l'audio", "-ac": "l'audio", "-ar": "l'audio",
-	"-af": "l'audio", "-filter:a": "l'audio", "-c:s": "i sottotitoli", "-scodec": "i sottotitoli",
-	"-vf": "i filtri video (crop, scala, tonemap)", "-filter:v": "i filtri video", "-filter_complex": "i filtri", "-lavfi": "i filtri",
-	"-pix_fmt": "il formato dei pixel", "-profile:v": "il profilo", "-color_primaries": "i tag colore",
-	"-color_trc": "i tag colore", "-colorspace": "i tag colore", "-color_range": "i tag colore",
-	"-y": "la sovrascrittura", "-n": "la sovrascrittura", "-f": "il contenitore", "-t": "la durata", "-ss": "l'inizio", "-to": "la durata",
-	"-an": "l'audio", "-sn": "i sottotitoli", "-dn": "i dati",
-	"-preset": "la velocità (usa il campo Velocità)", "-crf": "la qualità (usa il campo Qualità)", "-q:v": "la qualità (usa il campo Qualità)",
-	"-b:v": "il bitrate (usa il campo Bitrate)", "-maxrate": "il bitrate massimo", "-bufsize": "il bitrate massimo",
-	"-x265-params": "i parametri x265 (usa il campo Parametri encoder)", "-x264-params": "i parametri x264 (usa il campo Parametri encoder)",
-	"-svtav1-params": "i parametri SVT-AV1 (usa il campo Parametri encoder)",
+	"-i": T("l'input"), "-map": T("la scelta delle tracce"), "-map_metadata": T("i metadati"), "-map_chapters": T("i capitoli"),
+	"-c": T("i codec"), "-codec": T("i codec"), "-c:v": T("l'encoder"), "-vcodec": T("l'encoder"), "-codec:v": T("l'encoder"),
+	"-c:a": T("l'audio"), "-acodec": T("l'audio"), "-codec:a": T("l'audio"), "-b:a": T("l'audio"), "-ac": T("l'audio"), "-ar": T("l'audio"),
+	"-af": T("l'audio"), "-filter:a": T("l'audio"), "-c:s": T("i sottotitoli"), "-scodec": T("i sottotitoli"),
+	"-vf": T("i filtri video (crop, scala, tonemap)"), "-filter:v": T("i filtri video"), "-filter_complex": T("i filtri"), "-lavfi": T("i filtri"),
+	"-pix_fmt": T("il formato dei pixel"), "-profile:v": T("il profilo"), "-color_primaries": T("i tag colore"),
+	"-color_trc": T("i tag colore"), "-colorspace": T("i tag colore"), "-color_range": T("i tag colore"),
+	"-y": T("la sovrascrittura"), "-n": T("la sovrascrittura"), "-f": T("il contenitore"), "-t": T("la durata"), "-ss": T("l'inizio"), "-to": T("la durata"),
+	"-an": T("l'audio"), "-sn": T("i sottotitoli"), "-dn": T("i dati"),
+	"-preset": T("la velocità (usa il campo Velocità)"), "-crf": T("la qualità (usa il campo Qualità)"), "-q:v": T("la qualità (usa il campo Qualità)"),
+	"-b:v": T("il bitrate (usa il campo Bitrate)"), "-maxrate": T("il bitrate massimo"), "-bufsize": T("il bitrate massimo"),
+	"-x265-params": T("i parametri x265 (usa il campo Parametri encoder)"), "-x264-params": T("i parametri x264 (usa il campo Parametri encoder)"),
+	"-svtav1-params": T("i parametri SVT-AV1 (usa il campo Parametri encoder)"),
 }
 
 // Chiavi dei parametri encoder che il motore imposta da sé (HDR10 e tag colore)
@@ -394,21 +394,21 @@ func validateSpec(s PresetSpec) []PresetIssue {
 	add := func(level, field, msg string) { is = append(is, PresetIssue{level, field, msg}) }
 
 	if strings.TrimSpace(s.Name) == "" {
-		add("error", "name", "Il nome è obbligatorio.")
+		add("error", "name", T("Il nome è obbligatorio."))
 	}
 	if s.Schema > PresetSchema {
-		add("error", "schema", "Preset creato con una versione più recente di Encody.")
+		add("error", "schema", T("Preset creato con una versione più recente di Encody."))
 	}
 	if s.Encoder == "copy" {
 		return append(is, validateAudio(s)...)
 	}
 	e, ok := encoderCap(s.Encoder)
 	if !ok {
-		add("error", "encoder", fmt.Sprintf("Encoder sconosciuto: %q.", s.Encoder))
+		add("error", "encoder", fmt.Sprintf(T("Encoder sconosciuto: %q."), s.Encoder))
 		return is
 	}
 	if len(Tools.Encoders) > 0 && !Tools.Encoders[s.Encoder] {
-		add("error", "encoder", fmt.Sprintf("Il tuo FFmpeg non include %s.", e.Label))
+		add("error", "encoder", fmt.Sprintf(T("Il tuo FFmpeg non include %s."), e.Label))
 	}
 
 	// qualità e bitrate
@@ -418,26 +418,26 @@ func validateSpec(s PresetSpec) []PresetIssue {
 	}
 	switch {
 	case !modeOK:
-		add("error", "rate", fmt.Sprintf("%s non supporta la modalità %q.", e.Label, s.Rate.Mode))
+		add("error", "rate", fmt.Sprintf(T("%s non supporta la modalità %q."), e.Label, s.Rate.Mode))
 	case s.Rate.Mode == "bitrate":
 		if s.Rate.Bitrate <= 0 {
-			add("error", "rate", "Indica il bitrate in kbit/s.")
+			add("error", "rate", T("Indica il bitrate in kbit/s."))
 		} else if s.Rate.Bitrate < 500 {
-			add("warning", "rate", "Bitrate molto basso: qualità scarsa su contenuti 4K e 1080p.")
+			add("warning", "rate", T("Bitrate molto basso: qualità scarsa su contenuti 4K e 1080p."))
 		}
 		if s.Rate.Maxrate > 0 && s.Rate.Maxrate < s.Rate.Bitrate {
-			add("error", "rate", "Il bitrate massimo deve essere maggiore o uguale a quello medio.")
+			add("error", "rate", T("Il bitrate massimo deve essere maggiore o uguale a quello medio."))
 		}
 	default:
 		v := s.Rate.Value
 		if v < e.QualityMin || v > e.QualityMax {
-			add("error", "rate", fmt.Sprintf("%s fuori intervallo: per %s va da %g a %g.", e.QualityLabel, e.Label, e.QualityMin, e.QualityMax))
+			add("error", "rate", fmt.Sprintf(T("%s fuori intervallo: per %s va da %g a %g."), e.QualityLabel, e.Label, e.QualityMin, e.QualityMax))
 		} else if e.LowerBetter && v > e.QualityDef+10 {
-			add("warning", "rate", fmt.Sprintf("%s %g: qualità bassa, artefatti probabili.", e.QualityLabel, v))
+			add("warning", "rate", fmt.Sprintf(T("%s %g: qualità bassa, artefatti probabili."), e.QualityLabel, v))
 		} else if e.LowerBetter && v < e.QualityDef-8 {
-			add("warning", "rate", fmt.Sprintf("%s %g: file molto grandi, spesso vicini alla sorgente.", e.QualityLabel, v))
+			add("warning", "rate", fmt.Sprintf(T("%s %g: file molto grandi, spesso vicini alla sorgente."), e.QualityLabel, v))
 		} else if !e.LowerBetter && v < 40 {
-			add("warning", "rate", fmt.Sprintf("Qualità %g: artefatti probabili.", v))
+			add("warning", "rate", fmt.Sprintf(T("Qualità %g: artefatti probabili."), v))
 		}
 	}
 
@@ -448,31 +448,31 @@ func validateSpec(s PresetSpec) []PresetIssue {
 			found = found || sp == s.Speed
 		}
 		if !found {
-			add("error", "speed", fmt.Sprintf("Velocità %q non valida per %s.", s.Speed, e.Label))
+			add("error", "speed", fmt.Sprintf(T("Velocità %q non valida per %s."), s.Speed, e.Label))
 		}
 	} else if s.Speed != "" {
-		add("warning", "speed", fmt.Sprintf("%s non ha una scelta di velocità: il valore viene ignorato.", e.Label))
+		add("warning", "speed", fmt.Sprintf(T("%s non ha una scelta di velocità: il valore viene ignorato."), e.Label))
 	}
 
 	// risoluzione
 	if s.Scale != 0 && (s.Scale < 320 || s.Scale > 7680 || s.Scale%2 != 0) {
-		add("error", "scale", "Larghezza non valida: 0 (originale) oppure un numero pari tra 320 e 7680.")
+		add("error", "scale", T("Larghezza non valida: 0 (originale) oppure un numero pari tra 320 e 7680."))
 	}
 
 	// parametri dell'encoder
 	if p := strings.Trim(strings.TrimSpace(s.Params), ":"); p != "" {
 		if e.ParamsFlag == "" {
-			add("error", "params", fmt.Sprintf("%s non accetta parametri encoder.", e.Label))
+			add("error", "params", fmt.Sprintf(T("%s non accetta parametri encoder."), e.Label))
 		} else {
 			for _, kv := range strings.Split(p, ":") {
 				k, v, hasV := strings.Cut(kv, "=")
 				switch {
 				case !hasV || v == "":
-					add("error", "params", fmt.Sprintf("Parametro %q senza valore: scrivi chiave=valore.", kv))
+					add("error", "params", fmt.Sprintf(T("Parametro %q senza valore: scrivi chiave=valore."), kv))
 				case !paramKeyRe.MatchString(k):
-					add("error", "params", fmt.Sprintf("Nome di parametro non valido: %q.", k))
+					add("error", "params", fmt.Sprintf(T("Nome di parametro non valido: %q."), k))
 				case reservedParams[k]:
-					add("error", "params", fmt.Sprintf("%s lo gestisce Encody (HDR10 e tag colore dalla sorgente).", k))
+					add("error", "params", fmt.Sprintf(T("%s lo gestisce Encody (HDR10 e tag colore dalla sorgente)."), k))
 				}
 			}
 		}
@@ -480,20 +480,20 @@ func validateSpec(s PresetSpec) []PresetIssue {
 
 	// parametri extra: solo aggiuntivi
 	if args, err := splitArgs(s.Extra); err != nil {
-		add("error", "extra", "Parametri extra: "+err.Error()+".")
+		add("error", "extra", T("Parametri extra: ")+err.Error()+".")
 	} else {
 		// un valore deve seguire subito un'opzione, altrimenti FFmpeg lo prende per un file di output
 		afterOption := false
 		for _, a := range args {
 			if isOption(a) {
 				if what, bad := reservedArgs[a]; bad {
-					add("error", "extra", fmt.Sprintf("%s non è ammesso: %s lo gestisce Encody.", a, what))
+					add("error", "extra", fmt.Sprintf(T("%s non è ammesso: %s lo gestisce Encody."), a, what))
 				}
 				afterOption = true
 				continue
 			}
 			if !afterOption {
-				add("error", "extra", fmt.Sprintf("%q non segue un'opzione: FFmpeg lo userebbe come file di output.", a))
+				add("error", "extra", fmt.Sprintf(T("%q non segue un'opzione: FFmpeg lo userebbe come file di output."), a))
 			}
 			afterOption = false
 		}
@@ -501,15 +501,15 @@ func validateSpec(s PresetSpec) []PresetIssue {
 
 	// compatibilità con HDR e metadati dinamici
 	if !e.TenBit {
-		add("warning", "encoder", "Encoder a 8 bit: le sorgenti HDR verranno convertite in SDR (tonemap).")
+		add("warning", "encoder", T("Encoder a 8 bit: le sorgenti HDR verranno convertite in SDR (tonemap)."))
 	}
 	if !e.Dynamic {
-		add("warning", "encoder", "Dolby Vision e HDR10+ non si possono reinserire: resterà l'HDR10 statico (o SDR).")
+		add("warning", "encoder", T("Dolby Vision e HDR10+ non si possono reinserire: resterà l'HDR10 statico (o SDR)."))
 	} else if s.Scale > 0 {
-		add("info", "scale", "Con la riduzione di risoluzione Dolby Vision e HDR10+ non si possono reinserire.")
+		add("info", "scale", T("Con la riduzione di risoluzione Dolby Vision e HDR10+ non si possono reinserire."))
 	}
 	if e.ID == "libsvtav1" && strings.Contains(s.Params, "film-grain") {
-		add("info", "params", "Sintesi della grana: alcuni player e TV non la riproducono.")
+		add("info", "params", T("Sintesi della grana: alcuni player e TV non la riproducono."))
 	}
 	return append(is, validateAudio(s)...)
 }
@@ -521,11 +521,11 @@ func validateAudio(s PresetSpec) []PresetIssue {
 	switch s.Audio.Bitrate {
 	case "", "128k", "160k", "192k", "224k", "256k", "320k", "384k", "448k", "640k":
 	default:
-		is = append(is, PresetIssue{"error", "audio", fmt.Sprintf("Bitrate audio %q non valido per AC3 (es. 256k, 320k).", s.Audio.Bitrate)})
+		is = append(is, PresetIssue{"error", "audio", fmt.Sprintf(T("Bitrate audio %q non valido per AC3 (es. 256k, 320k)."), s.Audio.Bitrate)})
 	}
 	for _, c := range s.Audio.Passthrough {
 		if !knownAudioCodecs[c] {
-			is = append(is, PresetIssue{"warning", "audio", fmt.Sprintf("Codec audio %q sconosciuto: verrà ignorato.", c)})
+			is = append(is, PresetIssue{"warning", "audio", fmt.Sprintf(T("Codec audio %q sconosciuto: verrà ignorato."), c)})
 		}
 	}
 	return is
@@ -539,7 +539,7 @@ func previewCommand(p Preset) string {
 		job.ToneMap = true
 	}
 	args := append([]string{"ffmpeg", "-i", "input.mkv"}, encodeVideoArgs(job)...)
-	args = append(args, "[audio e sottotitoli]", "output.mkv")
+	args = append(args, T("[audio e sottotitoli]"), "output.mkv")
 	for i, a := range args {
 		if strings.ContainsAny(a, " ,;()[]") && !strings.HasPrefix(a, "[") {
 			args[i] = "'" + a + "'"

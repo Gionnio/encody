@@ -31,14 +31,14 @@ const presetTestSeconds = 3.0
 
 func cmdPreset(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		return fail(errors.New("uso: preset validate|test [--sample file] < preset.json"))
+		return fail(errors.New(T("uso: preset validate|test [--sample file] < preset.json")))
 	}
 	fs := flag.NewFlagSet("preset", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	sample := fs.String("sample", "", "")
 	specFile := fs.String("spec", "", "")
 	if err := fs.Parse(args[1:]); err != nil {
-		return fail(fmt.Errorf("argomenti non validi: %w", err))
+		return fail(fmt.Errorf(T("argomenti non validi: %w"), err))
 	}
 	var in io.Reader = os.Stdin
 	if *specFile != "" {
@@ -51,7 +51,7 @@ func cmdPreset(ctx context.Context, args []string) int {
 	}
 	var spec PresetSpec
 	if err := json.NewDecoder(in).Decode(&spec); err != nil {
-		return fail(fmt.Errorf("preset JSON non valido: %w", err))
+		return fail(fmt.Errorf(T("preset JSON non valido: %w"), err))
 	}
 	if spec.Schema == 0 {
 		spec.Schema = PresetSchema
@@ -73,7 +73,7 @@ func cmdPreset(ctx context.Context, args []string) int {
 	case "test":
 		return presetTest(ctx, spec, cleanPath(*sample))
 	}
-	return fail(fmt.Errorf("sottocomando sconosciuto: %s", args[0]))
+	return fail(fmt.Errorf(T("sottocomando sconosciuto: %s"), args[0]))
 }
 
 type testCheck struct {
@@ -87,7 +87,7 @@ var encoderComplaintRe = regexp.MustCompile(`(?i)(unknown option|invalid value|e
 
 func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	if issues := validateSpec(spec); hasErrors(issues) {
-		return failEvent(errors.New("il preset ha errori: " + firstError(issues)))
+		return failEvent(errors.New(T("il preset ha errori: ") + firstError(issues)))
 	}
 	p, err := compileSpec(spec)
 	if err != nil {
@@ -101,12 +101,12 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	defer releaseTmp(dir)
 
 	// 1. sorgente di prova
-	emit("step", map[string]any{"step": "Preparazione del clip di prova"})
+	emit("step", map[string]any{"step": T("Preparazione del clip di prova")})
 	var src string
 	if sample != "" {
 		info, err := probeFile(sample)
 		if err != nil {
-			return failEvent(fmt.Errorf("file di prova illeggibile: %w", err))
+			return failEvent(fmt.Errorf(T("file di prova illeggibile: %w"), err))
 		}
 		ref, err := makeBenchRef(ctx, sample, info, dir, []BenchSegment{{Start: info.Duration / 2, Duration: presetTestSeconds}})
 		if err != nil {
@@ -118,7 +118,7 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	}
 	info, err := probeFile(src)
 	if err != nil {
-		return failEvent(fmt.Errorf("clip di prova illeggibile: %w", err))
+		return failEvent(fmt.Errorf(T("clip di prova illeggibile: %w"), err))
 	}
 	srcSide := frameSideData(src)
 
@@ -129,7 +129,7 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	if mustToneMap(job.MetaType, p) {
 		job.ToneMap = true
 	}
-	emit("step", map[string]any{"step": "Codifica di prova"})
+	emit("step", map[string]any{"step": T("Codifica di prova")})
 	args := append([]string{"-hide_banner", "-nostdin", "-v", "warning", "-y", "-i", src}, encodeVideoArgs(job)...)
 	args = append(args, job.OutputPath)
 	start := time.Now()
@@ -158,14 +158,14 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 	case len(complaints) > 0:
 		add("error", "Parametri ignorati o rifiutati dall'encoder", strings.Join(complaints, "\n"))
 	default:
-		add("ok", "Parametri accettati", "")
+		add("ok", T("Parametri accettati"), "")
 	}
 
 	result := map[string]any{"command": "ffmpeg " + strings.Join(args, " ")}
 	if runErr == nil {
 		out, err := probeFile(job.OutputPath)
 		if err != nil {
-			add("error", "Output illeggibile", err.Error())
+			add("error", T("Output illeggibile"), err.Error())
 		} else {
 			checks = append(checks, checkOutput(job, info, out, srcSide)...)
 			frames := info.Duration * fpsValue(info.FPSStr)
@@ -176,14 +176,14 @@ func presetTest(ctx context.Context, spec PresetSpec, sample string) int {
 				result["bitrate_kbps"] = float64(fileSize(job.OutputPath)) * 8 / out.Duration / 1000
 			}
 		}
-		emit("step", map[string]any{"step": "Verifica della decodifica"})
+		emit("step", map[string]any{"step": T("Verifica della decodifica")})
 		dec := exec.CommandContext(ctx, Tools.FFmpeg, "-hide_banner", "-nostdin", "-v", "error", "-i", job.OutputPath, "-f", "null", "-")
 		var decErr bytes.Buffer
 		dec.Stderr = &decErr
 		if err := dec.Run(); err != nil || strings.TrimSpace(decErr.String()) != "" {
 			add("error", "Il file non si decodifica correttamente", strings.TrimSpace(tail(decErr.Bytes(), 5)))
 		} else {
-			add("ok", "Decodifica senza errori", "")
+			add("ok", T("Decodifica senza errori"), "")
 		}
 	}
 
@@ -210,7 +210,7 @@ func makeHDRTestClip(ctx context.Context, dir string) (string, error) {
 		"-c:v", "libx265", "-preset", "ultrafast", "-crf", "12", "-x265-params", xp,
 		"-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc", out)
 	if msg, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("clip di prova: %w\n%s", err, tail(msg, 5))
+		return "", fmt.Errorf(T("clip di prova: %w\n%s"), err, tail(msg, 5))
 	}
 	return out, nil
 }
@@ -256,53 +256,53 @@ func checkOutput(job Job, in, out *MediaInfo, srcSide sideData) []testCheck {
 	if codec == p.Codec {
 		add("ok", "Codec "+strings.ToUpper(codec), profile)
 	} else {
-		add("error", "Codec inatteso", fmt.Sprintf("atteso %s, ottenuto %s", p.Codec, codec))
+		add("error", T("Codec inatteso"), fmt.Sprintf(T("atteso %s, ottenuto %s"), p.Codec, codec))
 	}
 	tenBit := strings.Contains(pixFmt, "10")
 	wantTen := p.TenBit && !job.ToneMap
 	switch {
 	case wantTen && tenBit, !wantTen && !tenBit:
-		add("ok", map[bool]string{true: "10 bit", false: "8 bit"}[tenBit], pixFmt)
+		add("ok", map[bool]string{true: T("10 bit"), false: T("8 bit")}[tenBit], pixFmt)
 	case wantTen:
-		add("error", "Profondità a 8 bit", "l'HDR richiede 10 bit: "+pixFmt)
+		add("error", T("Profondità a 8 bit"), T("l'HDR richiede 10 bit: ")+pixFmt)
 	default:
-		add("warning", "Profondità inattesa", pixFmt)
+		add("warning", T("Profondità inattesa"), pixFmt)
 	}
 	if p.Scale > 0 && out.Width != p.Scale {
-		add("error", "Risoluzione inattesa", fmt.Sprintf("larghezza %d invece di %d", out.Width, p.Scale))
+		add("error", T("Risoluzione inattesa"), fmt.Sprintf(T("larghezza %d invece di %d"), out.Width, p.Scale))
 	} else {
-		add("ok", fmt.Sprintf("Risoluzione %d×%d", out.Width, out.Height), "")
+		add("ok", fmt.Sprintf(T("Risoluzione %d×%d"), out.Width, out.Height), "")
 	}
 
 	if isHDR(in.MetaType) {
 		if job.ToneMap {
 			if out.ColorTrc == "bt709" {
-				add("ok", "Convertito in SDR (BT.709)", "encoder a 8 bit: l'HDR non si può conservare")
+				add("ok", T("Convertito in SDR (BT.709)"), T("encoder a 8 bit: l'HDR non si può conservare"))
 			} else {
-				add("error", "Conversione in SDR non riuscita", "trasferimento "+out.ColorTrc)
+				add("error", T("Conversione in SDR non riuscita"), T("trasferimento ")+out.ColorTrc)
 			}
 		} else {
 			if out.ColorTrc == in.ColorTrc && out.ColorPrim == in.ColorPrim {
-				add("ok", "Tag colore HDR conservati", in.ColorPrim+" · "+in.ColorTrc)
+				add("ok", T("Tag colore HDR conservati"), in.ColorPrim+" · "+in.ColorTrc)
 			} else {
-				add("error", "Tag colore HDR persi", fmt.Sprintf("%s · %s invece di %s · %s", out.ColorPrim, out.ColorTrc, in.ColorPrim, in.ColorTrc))
+				add("error", T("Tag colore HDR persi"), fmt.Sprintf(T("%s · %s invece di %s · %s"), out.ColorPrim, out.ColorTrc, in.ColorPrim, in.ColorTrc))
 			}
 			side := frameSideData(job.OutputPath)
 			switch {
 			case srcSide.Mastering && !side.Mastering:
-				add("error", "Metadati HDR10 persi", "mastering display assente nell'output")
+				add("error", T("Metadati HDR10 persi"), T("mastering display assente nell'output"))
 			case srcSide.CLL && !side.CLL:
-				add("warning", "MaxCLL/MaxFALL assenti", "alcuni TV regolano peggio la luminosità")
+				add("warning", T("MaxCLL/MaxFALL assenti"), T("alcuni TV regolano peggio la luminosità"))
 			case srcSide.Mastering:
-				add("ok", "Metadati HDR10 conservati", "mastering display e MaxCLL")
+				add("ok", T("Metadati HDR10 conservati"), T("mastering display e MaxCLL"))
 			}
 		}
 	}
 	if !p.TenBit && p.Type != "copy" {
-		add("warning", "Solo SDR", "con sorgenti HDR il preset converte sempre in SDR")
+		add("warning", T("Solo SDR"), T("con sorgenti HDR il preset converte sempre in SDR"))
 	}
 	if p.Codec != "hevc" {
-		add("warning", "Niente Dolby Vision / HDR10+", "i metadati dinamici si reinseriscono solo in HEVC")
+		add("warning", T("Niente Dolby Vision / HDR10+"), T("i metadati dinamici si reinseriscono solo in HEVC"))
 	}
 	return c
 }

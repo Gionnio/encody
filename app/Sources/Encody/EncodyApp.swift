@@ -57,8 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard EngineRun.hasActive else { return .terminateNow }
         let alert = NSAlert()
-        alert.messageText = "Lavoro in corso"
-        alert.informativeText = "Uscendo, l'encode in corso verrà interrotto e i file parziali rimossi."
+        alert.messageText = String(localized: "Lavoro in corso")
+        alert.informativeText = String(localized: "Uscendo, l'encode in corso verrà interrotto e i file parziali rimossi.")
         alert.addButton(withTitle: "Interrompi ed esci")
         alert.addButton(withTitle: "Annulla")
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }

@@ -176,7 +176,7 @@ func checkDeps(quiet bool) {
 
 	if Tools.FFmpeg == "" || Tools.FFprobe == "" {
 		if quiet {
-			msg := "ffmpeg o ffprobe non trovati nel PATH"
+			msg := T("ffmpeg o ffprobe non trovati nel PATH")
 			printJSON(map[string]any{"error": msg, "type": "error", "message": msg}) // valido sia per comandi JSON che a eventi
 			os.Exit(1)
 		}
@@ -221,13 +221,13 @@ func checkDeps(quiet bool) {
 		missing = append(missing, "hdr10plus_tool")
 	}
 	if !Tools.HasZscale {
-		missing = append(missing, "zscale (tonemap HDR→SDR)")
+		missing = append(missing, T("zscale (tonemap HDR→SDR)"))
 	}
 	if !Tools.HasVMAF {
 		missing = append(missing, "libvmaf")
 	}
 	if !Tools.HasXPSNR {
-		missing = append(missing, "xpsnr (FFmpeg 7.1+)")
+		missing = append(missing, T("xpsnr (FFmpeg 7.1+)"))
 	}
 	if len(missing) > 0 {
 		fmt.Printf("%sℹ️  Non disponibili: %s (le funzioni relative saranno disattivate)%s\n", C.Yellow, strings.Join(missing, ", "), C.Reset)
@@ -293,11 +293,11 @@ func humanSize(b int64) string {
 	f := float64(b)
 	switch {
 	case f >= 1e9:
-		return fmt.Sprintf("%.2f GB", f/1e9)
+		return fmt.Sprintf(T("%.2f GB"), f/1e9)
 	case f >= 1e6:
-		return fmt.Sprintf("%.0f MB", f/1e6)
+		return fmt.Sprintf(T("%.0f MB"), f/1e6)
 	default:
-		return fmt.Sprintf("%.0f KB", f/1e3)
+		return fmt.Sprintf(T("%.0f KB"), f/1e3)
 	}
 }
 
@@ -308,9 +308,9 @@ func fmtDur(d time.Duration) string {
 	s := int(d.Seconds()) % 60
 	switch {
 	case h > 0:
-		return fmt.Sprintf("%dh %02dm %02ds", h, m, s)
+		return fmt.Sprintf(T("%dh %02dm %02ds"), h, m, s)
 	case m > 0:
-		return fmt.Sprintf("%dm %02ds", m, s)
+		return fmt.Sprintf(T("%dm %02ds"), m, s)
 	default:
 		return fmt.Sprintf("%ds", s)
 	}
@@ -658,9 +658,9 @@ func fmtBitrate(b int64) string {
 	case b <= 0:
 		return ""
 	case b >= 1e6:
-		return fmt.Sprintf("%.1f Mb/s", float64(b)/1e6)
+		return fmt.Sprintf(T("%.1f Mb/s"), float64(b)/1e6)
 	default:
-		return fmt.Sprintf("%d kb/s", b/1000)
+		return fmt.Sprintf(T("%d kb/s"), b/1000)
 	}
 }
 
@@ -680,9 +680,9 @@ func trackLabel(t TrackSel) string {
 		lang = "und"
 	}
 	if t.Channels > 0 {
-		return fmt.Sprintf("%s %s %s", lang, prettyCodec(t.Codec, t.Profile), layoutOf(t))
+		return fmt.Sprintf(T("%s %s %s"), lang, prettyCodec(t.Codec, t.Profile), layoutOf(t))
 	}
-	s := fmt.Sprintf("%s %s", lang, prettyCodec(t.Codec, t.Profile))
+	s := fmt.Sprintf(T("%s %s"), lang, prettyCodec(t.Codec, t.Profile))
 	if t.Forced {
 		s += " forced"
 	}
@@ -712,9 +712,9 @@ func multichPlan(codec, name, br string, t TrackSel) AudioPlan {
 	if t.Channels > 6 {
 		// AC3 ed E-AC3 in ffmpeg arrivano al massimo a 5.1
 		p.Channels = 6
-		p.Desc = fmt.Sprintf("%s 5.1 %s (downmix %s→5.1)", name, br, layoutOf(t))
+		p.Desc = fmt.Sprintf(T("%s 5.1 %s (downmix %s→5.1)"), name, br, layoutOf(t))
 	} else {
-		p.Desc = fmt.Sprintf("%s %s %s", name, layoutOf(t), br)
+		p.Desc = fmt.Sprintf(T("%s %s %s"), name, layoutOf(t), br)
 	}
 	return p
 }
@@ -725,7 +725,7 @@ func withLossNotes(p AudioPlan, t TrackSel) AudioPlan {
 		notes = append(notes, "lossless→lossy")
 	}
 	if strings.Contains(t.Profile, "Atmos") || strings.Contains(t.Profile, "DTS:X") {
-		notes = append(notes, "oggetti Atmos/DTS:X persi")
+		notes = append(notes, T("oggetti Atmos/DTS:X persi"))
 	}
 	if len(notes) > 0 {
 		p.Desc += "  ⚠️ " + strings.Join(notes, ", ")
@@ -739,28 +739,28 @@ func planAudio(job Job, t TrackSel) AudioPlan {
 		p := AudioPlan{Codec: "aac", Bitrate: "256k"}
 		if t.Channels > 2 {
 			p.Channels = 2
-			p.Desc = fmt.Sprintf("AAC stereo 256k (downmix %s→2.0)", layoutOf(t))
+			p.Desc = fmt.Sprintf(T("AAC stereo 256k (downmix %s→2.0)"), layoutOf(t))
 		} else {
-			p.Desc = fmt.Sprintf("AAC %s 256k", layoutOf(t))
+			p.Desc = fmt.Sprintf(T("AAC %s 256k"), layoutOf(t))
 		}
 		return withLossNotes(p, t)
 	case "eac3":
 		if t.Codec == "ac3" || t.Codec == "eac3" {
-			return AudioPlan{Codec: "copy", Desc: "copia (già Dolby Digital)"}
+			return AudioPlan{Codec: "copy", Desc: T("copia (già Dolby Digital)")}
 		}
 		if t.Channels <= 2 {
-			return AudioPlan{Codec: "copy", Desc: "copia (stereo)"}
+			return AudioPlan{Codec: "copy", Desc: T("copia (stereo)")}
 		}
 		return withLossNotes(multichPlan("eac3", "E-AC3", "640k", t), t)
 	}
 	if job.Preset.Type == "copy" || contains(job.Preset.Passthrough, t.Codec) {
-		return AudioPlan{Codec: "copy", Desc: "copia (passthrough)"}
+		return AudioPlan{Codec: "copy", Desc: T("copia (passthrough)")}
 	}
 	if t.Channels > 2 {
 		return withLossNotes(multichPlan("ac3", "AC3", "640k", t), t)
 	}
 	br := job.Preset.AudioBitrate
-	return withLossNotes(AudioPlan{Codec: "ac3", Bitrate: br, Desc: fmt.Sprintf("AC3 %s %s", layoutOf(t), br)}, t)
+	return withLossNotes(AudioPlan{Codec: "ac3", Bitrate: br, Desc: fmt.Sprintf(T("AC3 %s %s"), layoutOf(t), br)}, t)
 }
 
 func buildAudioArgs(job Job) []string {
@@ -791,36 +791,36 @@ func subCodec(t TrackSel) string {
 
 func subPlanDesc(t TrackSel) string {
 	if subCodec(t) == "srt" {
-		return "convertito in SRT (MKV non supporta mov_text)"
+		return T("convertito in SRT (MKV non supporta mov_text)")
 	}
 	return "copia"
 }
 
 func videoLabel(j Job) string {
 	if j.Preset.Type == "copy" {
-		return "copia (" + j.MetaType + ")"
+		return T("copia (") + j.MetaType + ")"
 	}
 	parts := []string{}
 	switch {
 	case j.ToneMap:
-		parts = append(parts, fmt.Sprintf("%s → SDR (tonemap %s)", j.MetaType, ToneMapAlgo))
+		parts = append(parts, fmt.Sprintf(T("%s → SDR (tonemap %s)"), j.MetaType, ToneMapAlgo))
 	case isHDR(j.MetaType):
-		parts = append(parts, j.MetaType+" mantenuto")
+		parts = append(parts, j.MetaType+T(" mantenuto"))
 	default:
 		parts = append(parts, "SDR")
 	}
 	if !j.ToneMap && (j.MetaType == "DV" || j.MetaType == "HDR10+") {
 		if j.DoInject {
-			parts = append(parts, "metadati dinamici iniettati")
+			parts = append(parts, T("metadati dinamici iniettati"))
 		} else {
-			parts = append(parts, "metadati dinamici scartati (fallback HDR10)")
+			parts = append(parts, T("metadati dinamici scartati (fallback HDR10)"))
 		}
 	}
 	if j.Crop != "" {
 		parts = append(parts, strings.Replace(j.Crop, "crop=", "crop ", 1))
 	}
 	if j.Preset.Scale > 0 {
-		parts = append(parts, fmt.Sprintf("scala a %dpx", j.Preset.Scale))
+		parts = append(parts, fmt.Sprintf(T("scala a %dpx"), j.Preset.Scale))
 	}
 	return strings.Join(parts, " | ")
 }
@@ -952,23 +952,23 @@ func runFFmpegPiped(ctx context.Context, args []string, ch chan<- ProgressUpdate
 	}
 	if err != nil {
 		if msg := tail(stderr.Bytes(), 15); msg != "" {
-			return 0, fmt.Errorf("%s: %w\n%s", stepName, err, msg)
+			return 0, fmt.Errorf(T("%s: %w\n%s"), stepName, err, msg)
 		}
-		return 0, fmt.Errorf("%s: %w", stepName, err)
+		return 0, fmt.Errorf(T("%s: %w"), stepName, err)
 	}
 	return frames, nil
 }
 
 func runTool(ctx context.Context, name, bin string, args ...string) error {
 	if bin == "" {
-		return fmt.Errorf("%s non trovato", name)
+		return fmt.Errorf(T("%s non trovato"), name)
 	}
 	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	if err != nil {
-		return fmt.Errorf("%s: %w\n%s", name, err, tail(out, 15))
+		return fmt.Errorf(T("%s: %w\n%s"), name, err, tail(out, 15))
 	}
 	return nil
 }
@@ -984,7 +984,7 @@ func runMkvmerge(ctx context.Context, args ...string) (string, error) {
 		if errors.As(err, &ee) && ee.ExitCode() == 1 {
 			return tail(out, 5), nil
 		}
-		return "", fmt.Errorf("mkvmerge: %w\n%s", err, tail(out, 15))
+		return "", fmt.Errorf(T("mkvmerge: %w\n%s"), err, tail(out, 15))
 	}
 	return "", nil
 }
@@ -994,11 +994,11 @@ func metaFrameCount(ctx context.Context, meta, file string) (int64, error) {
 	if meta == "DV" {
 		out, err := exec.CommandContext(ctx, Tools.DoviTool, "info", "-i", file, "--summary").CombinedOutput()
 		if err != nil {
-			return 0, fmt.Errorf("dovi_tool info: %w", err)
+			return 0, fmt.Errorf(T("dovi_tool info: %w"), err)
 		}
 		m := framesRe.FindSubmatch(out)
 		if m == nil {
-			return 0, errors.New("conteggio frame non trovato nel summary")
+			return 0, errors.New(T("conteggio frame non trovato nel summary"))
 		}
 		return strconv.ParseInt(string(m[1]), 10, 64)
 	}
@@ -1013,7 +1013,7 @@ func metaFrameCount(ctx context.Context, meta, file string) (int64, error) {
 		return 0, err
 	}
 	if len(j.SceneInfo) == 0 {
-		return 0, errors.New("SceneInfo vuoto")
+		return 0, errors.New(T("SceneInfo vuoto"))
 	}
 	return int64(len(j.SceneInfo)), nil
 }
@@ -1021,17 +1021,17 @@ func metaFrameCount(ctx context.Context, meta, file string) (int64, error) {
 func injectBlocker(meta string, dvProfile int, p Preset) string {
 	switch {
 	case p.Type != "copy" && p.Codec != "hevc":
-		return "l'encoder del preset non è HEVC: dovi_tool e hdr10plus_tool reinseriscono i metadati solo in HEVC"
+		return T("l'encoder del preset non è HEVC: dovi_tool e hdr10plus_tool reinseriscono i metadati solo in HEVC")
 	case p.Scale > 0:
-		return "inject non supportato con i preset scalati"
+		return T("inject non supportato con i preset scalati")
 	case meta == "DV" && dvProfile == 5:
-		return "il profilo 5 non è convertibile in 8.1"
+		return T("il profilo 5 non è convertibile in 8.1")
 	case Tools.MkvMerge == "":
-		return "mkvmerge non trovato"
+		return T("mkvmerge non trovato")
 	case meta == "DV" && Tools.DoviTool == "":
-		return "dovi_tool non trovato"
+		return T("dovi_tool non trovato")
 	case meta == "HDR10+" && Tools.Hdr10PlTool == "":
-		return "hdr10plus_tool non trovato"
+		return T("hdr10plus_tool non trovato")
 	}
 	return ""
 }
@@ -1050,11 +1050,11 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		}
 	}()
 	if len(job.Preset.VideoOpts) == 0 {
-		return fmt.Errorf("preset %q non trovato", job.Preset.ID)
+		return fmt.Errorf(T("preset %q non trovato"), job.Preset.ID)
 	}
 	if mustToneMap(job.MetaType, job.Preset) {
 		if !Tools.HasZscale {
-			return errors.New("encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR")
+			return errors.New(T("encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR"))
 		}
 		job.ToneMap = true
 		job.DoInject = false
@@ -1072,7 +1072,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 	info := func(msg string) { ch <- ProgressUpdate{Info: msg} }
 
 	if job.ToneMap && !Tools.HasZscale {
-		return errors.New("tonemap richiesto ma FFmpeg non ha zscale")
+		return errors.New(T("tonemap richiesto ma FFmpeg non ha zscale"))
 	}
 
 	if !job.DoInject {
@@ -1093,14 +1093,14 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 	} else {
 		// 2. SAFE PATH (inject metadati dinamici)
 		if why := injectBlocker(job.MetaType, job.DVProfile, job.Preset); why != "" {
-			return fmt.Errorf("inject impossibile: %s", why)
+			return fmt.Errorf(T("inject impossibile: %s"), why)
 		}
 
 		// In test mode metadati ed encode leggono lo STESSO bitstream tagliato: frame allineati per costruzione
 		src, srcMap := job.InputPath, videoMap(job)
 		var srcIn []string
 		if TestModeActive {
-			report("Test Trim")
+			report(T("Test Trim"))
 			trimmed := filepath.Join(workDir, "test_src.hevc")
 			if _, err := runFFmpegPiped(ctx, []string{"-y", "-i", job.InputPath, "-t", TestDuration, "-map", videoMap(job),
 				"-c:v", "copy", "-bsf:v", "hevc_mp4toannexb", "-f", "hevc", trimmed}, ch, "Test Trim", dur); err != nil {
@@ -1110,7 +1110,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			srcIn = []string{"-r", job.FPSStr} // l'HEVC raw non ha timestamp
 		}
 
-		report("Audio Extract")
+		report(T("Audio Extract"))
 		tmpAudio := filepath.Join(workDir, "audio.mkv")
 		cmdAud := []string{"-y", "-i", job.InputPath, "-vn"}
 		if TestModeActive {
@@ -1122,7 +1122,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			return err
 		}
 
-		report("Meta Extract")
+		report(T("Meta Extract"))
 		var metaFile string
 		if job.MetaType == "DV" {
 			metaFile = filepath.Join(workDir, "rpu.bin")
@@ -1151,21 +1151,21 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			return err
 		}
 
-		report("Verifica Frame")
+		report(T("Verifica Frame"))
 		if frames <= 0 {
-			info("⚠️  Conteggio frame video non disponibile: verifica di allineamento saltata.")
+			info(T("⚠️  Conteggio frame video non disponibile: verifica di allineamento saltata."))
 		} else if n, err := metaFrameCount(ctx, job.MetaType, metaFile); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			info(fmt.Sprintf("⚠️  Impossibile contare i frame dei metadati (%v): verifica saltata.", err))
+			info(fmt.Sprintf(T("⚠️  Impossibile contare i frame dei metadati (%v): verifica saltata."), err))
 		} else if n != frames {
-			return fmt.Errorf("frame non allineati: video %d, metadati %s %d. L'inject desincronizzerebbe i metadati", frames, job.MetaType, n)
+			return fmt.Errorf(T("frame non allineati: video %d, metadati %s %d. L'inject desincronizzerebbe i metadati"), frames, job.MetaType, n)
 		} else {
-			info(fmt.Sprintf("✓ Frame allineati: %d video = %d metadati", frames, n))
+			info(fmt.Sprintf(T("✓ Frame allineati: %d video = %d metadati"), frames, n))
 		}
 
-		report("Meta Inject")
+		report(T("Meta Inject"))
 		injVid := filepath.Join(workDir, "injected.hevc")
 		if job.MetaType == "DV" {
 			err = runTool(ctx, "dovi_tool", Tools.DoviTool, "inject-rpu", "-i", rawVid, "--rpu-in", metaFile, "-o", injVid)
@@ -1183,7 +1183,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			return err
 		}
 		if warn != "" {
-			info("⚠️  mkvmerge ha emesso dei warning (file comunque valido):\n" + warn)
+			info(T("⚠️  mkvmerge ha emesso dei warning (file comunque valido):\n") + warn)
 		}
 	}
 
@@ -1314,9 +1314,9 @@ func formatScore(m string, v float64) string {
 	case "ssim":
 		return fmt.Sprintf("%.4f", v)
 	case "xpsnr":
-		return fmt.Sprintf("%.2f dB", v)
+		return fmt.Sprintf(T("%.2f dB"), v)
 	case "cvvdp":
-		return fmt.Sprintf("%.2f JOD", v)
+		return fmt.Sprintf(T("%.2f JOD"), v)
 	default:
 		return fmt.Sprintf("%.1f", v)
 	}
@@ -1327,19 +1327,19 @@ func metricAvailable(m string) error {
 	switch m {
 	case "vmaf":
 		if !Tools.HasVMAF {
-			return errors.New("FFmpeg compilato senza libvmaf")
+			return errors.New(T("FFmpeg compilato senza libvmaf"))
 		}
 	case "xpsnr":
 		if !Tools.HasXPSNR {
-			return errors.New("FFmpeg senza filtro xpsnr (serve FFmpeg 7.1 o successivo)")
+			return errors.New(T("FFmpeg senza filtro xpsnr (serve FFmpeg 7.1 o successivo)"))
 		}
 	case "cvvdp":
 		if Tools.CVVDP == "" {
-			return errors.New("ColorVideoVDP non installato (pip install cvvdp, oppure Impostazioni → Installa)")
+			return errors.New(T("ColorVideoVDP non installato (pip install cvvdp, oppure Impostazioni → Installa)"))
 		}
 	case "ssim":
 	default:
-		return fmt.Errorf("metrica sconosciuta: %s", m)
+		return fmt.Errorf(T("metrica sconosciuta: %s"), m)
 	}
 	return nil
 }
@@ -1402,13 +1402,13 @@ func qualityVerdict(metric string, v float64) string {
 	}[metric]
 	switch {
 	case v >= t[0]:
-		return "praticamente indistinguibile"
+		return T("praticamente indistinguibile")
 	case v >= t[1]:
 		return "ottimo"
 	case v >= t[2]:
 		return "buono"
 	default:
-		return "artefatti visibili"
+		return T("artefatti visibili")
 	}
 }
 
@@ -1420,11 +1420,11 @@ func measureQuality(ctx context.Context, ref, dist, metric string, on func(Progr
 	}
 	refInfo, err := probeFile(ref)
 	if err != nil {
-		return QualityScore{}, fmt.Errorf("reference illeggibile: %w", err)
+		return QualityScore{}, fmt.Errorf(T("reference illeggibile: %w"), err)
 	}
 	distInfo, err := probeFile(dist)
 	if err != nil {
-		return QualityScore{}, fmt.Errorf("file encodato illeggibile: %w", err)
+		return QualityScore{}, fmt.Errorf(T("file encodato illeggibile: %w"), err)
 	}
 	w, h := refInfo.Width, refInfo.Height
 
@@ -1486,7 +1486,7 @@ func measureQuality(ctx context.Context, ref, dist, metric string, on func(Progr
 			}
 		}
 		if n == 0 {
-			return QualityScore{}, errors.New("nessun valore SSIM nel log")
+			return QualityScore{}, errors.New(T("nessun valore SSIM nel log"))
 		}
 		return QualityScore{Value: sum / float64(n)}, nil
 	case "xpsnr":
@@ -1512,7 +1512,7 @@ var xpsnrAvgRe = regexp.MustCompile(`XPSNR average.*?y:\s*([\d.]+|inf)\s+u:\s*([
 func parseXPSNR(log string) (QualityScore, error) {
 	m := xpsnrAvgRe.FindStringSubmatch(log)
 	if m == nil {
-		return QualityScore{}, errors.New("nessun valore XPSNR nel log")
+		return QualityScore{}, errors.New(T("nessun valore XPSNR nel log"))
 	}
 	val := func(s string) float64 {
 		if s == "inf" {
@@ -1524,7 +1524,7 @@ func parseXPSNR(log string) (QualityScore, error) {
 	y, u, v := val(m[1]), val(m[2]), val(m[3])
 	return QualityScore{
 		Value:  (6*y + u + v) / 8,
-		Detail: fmt.Sprintf("Y %.2f · U %.2f · V %.2f dB", y, u, v),
+		Detail: fmt.Sprintf(T("Y %.2f · U %.2f · V %.2f dB"), y, u, v),
 	}, nil
 }
 
@@ -1532,13 +1532,13 @@ func parseXPSNR(log string) (QualityScore, error) {
 func cvvdpDisplay(info *MediaInfo) (string, string) {
 	switch {
 	case info.MetaType == "HLG":
-		return "standard_hdr_hlg", "display HDR HLG"
+		return "standard_hdr_hlg", T("display HDR HLG")
 	case isHDR(info.MetaType):
-		return "standard_hdr_pq", "display HDR PQ 1500 nit"
+		return "standard_hdr_pq", T("display HDR PQ 1500 nit")
 	case info.Width >= 2560:
-		return "standard_4k", "display SDR 4K"
+		return "standard_4k", T("display SDR 4K")
 	default:
-		return "standard_fhd", "display SDR Full HD"
+		return "standard_fhd", T("display SDR Full HD")
 	}
 }
 
@@ -1607,7 +1607,7 @@ func measureCVVDP(ctx context.Context, ref, dist string, refInfo, distInfo *Medi
 	}
 
 	display, displayLabel := cvvdpDisplay(refInfo)
-	step := "Analisi ColorVideoVDP"
+	step := T("Analisi ColorVideoVDP")
 	on(ProgressUpdate{Step: step})
 	args := []string{"--device", "mps", "-d", display, "-t", distClip, "-r", refClip}
 	if runtime.GOOS != "darwin" {
@@ -1663,12 +1663,12 @@ func measureCVVDP(ctx context.Context, ref, dist string, refInfo, distInfo *Medi
 	}
 	m := regexp.MustCompile(`cvvdp=([\d.]+)`).FindStringSubmatch(stdout.String())
 	if m == nil {
-		return QualityScore{}, fmt.Errorf("ColorVideoVDP: risultato non trovato\n%s", tail(stdout.Bytes(), 10))
+		return QualityScore{}, fmt.Errorf(T("ColorVideoVDP: risultato non trovato\n%s"), tail(stdout.Bytes(), 10))
 	}
 	v, _ := strconv.ParseFloat(m[1], 64)
-	what := fmt.Sprintf("%.0f s analizzati", seconds)
+	what := fmt.Sprintf(T("%.0f s analizzati"), seconds)
 	if len(windows) > 1 {
-		what = fmt.Sprintf("%.0f s analizzati in %d tratti", seconds, len(windows))
+		what = fmt.Sprintf(T("%.0f s analizzati in %d tratti"), seconds, len(windows))
 	}
 	return QualityScore{Value: v, Detail: what + " · " + displayLabel}, nil
 }
@@ -1691,7 +1691,7 @@ func makeBenchRef(ctx context.Context, src string, info *MediaInfo, dir string, 
 			return ctx.Err()
 		}
 		if err != nil {
-			return fmt.Errorf("generazione reference: %w\n%s", err, tail(out, 10))
+			return fmt.Errorf(T("generazione reference: %w\n%s"), err, tail(out, 10))
 		}
 		return nil
 	}
@@ -1810,13 +1810,13 @@ func modeBenchmark(ctx context.Context) {
 func benchWarnings(info *MediaInfo, metric string) []string {
 	w := []string{}
 	if info.DVProfile == 5 {
-		w = append(w, "Dolby Vision profilo 5: gli encode avranno colori sbagliati, il punteggio è poco significativo.")
+		w = append(w, T("Dolby Vision profilo 5: gli encode avranno colori sbagliati, il punteggio è poco significativo."))
 	}
 	if isHDR(info.MetaType) && metric == "vmaf" {
-		w = append(w, fmt.Sprintf("Sorgente %s: vmaf_v0.6.1 è un modello SDR, i valori sono solo indicativi. Per l'HDR usa XPSNR o ColorVideoVDP.", info.MetaType))
+		w = append(w, fmt.Sprintf(T("Sorgente %s: vmaf_v0.6.1 è un modello SDR, i valori sono solo indicativi. Per l'HDR usa XPSNR o ColorVideoVDP."), info.MetaType))
 	}
 	if metric == "cvvdp" {
-		w = append(w, fmt.Sprintf("ColorVideoVDP analizza %.0f s per preset ed è lento (qualche minuto per preset su un 4K).", CVVDPSeconds))
+		w = append(w, fmt.Sprintf(T("ColorVideoVDP analizza %.0f s per preset ed è lento (qualche minuto per preset su un 4K)."), CVVDPSeconds))
 	}
 	return w
 }
@@ -2038,7 +2038,7 @@ func buildJobs(autoFile string, autoPreset *Preset) []Job {
 
 		label := info.MetaType
 		if info.MetaType == "DV" && info.DVProfile > 0 {
-			label = fmt.Sprintf("DV P%d", info.DVProfile)
+			label = fmt.Sprintf(T("DV P%d"), info.DVProfile)
 		}
 		fmt.Printf("\n--> %s%s%s\n", C.Bold, filepath.Base(f), C.Reset)
 		fmt.Printf("    %s | %s | %dx%d | %.3f fps | %s\n",
@@ -2131,7 +2131,7 @@ func buildJobs(autoFile string, autoPreset *Preset) []Job {
 			}
 			title := ""
 			if s.Title != "" {
-				title = fmt.Sprintf(" %q", s.Title)
+				title = fmt.Sprintf(T(" %q"), s.Title)
 			}
 			br := ""
 			if b := fmtBitrate(s.BitRate); b != "" {
@@ -2203,11 +2203,11 @@ func buildJobs(autoFile string, autoPreset *Preset) []Job {
 			}
 			extra := kind
 			if s.Frames > 0 {
-				extra += fmt.Sprintf(", %d righe", s.Frames)
+				extra += fmt.Sprintf(T(", %d righe"), s.Frames)
 			}
 			title := ""
 			if s.Title != "" {
-				title = fmt.Sprintf(" %q", s.Title)
+				title = fmt.Sprintf(T(" %q"), s.Title)
 			}
 			fmt.Printf(" [%d] %-4s %-8s (%s)%s%s%s%s%s\n", s.Index, s.Lang, prettyCodec(s.CodecName, ""), extra,
 				C.Dim, title, flagsOf(s.Default, s.Forced), C.Reset, marker)
@@ -2271,7 +2271,7 @@ func loadQueueQuiet(path string) ([]Job, []string, error) {
 	}
 	var q []Job
 	if err := json.Unmarshal(data, &q); err != nil {
-		return nil, nil, fmt.Errorf("JSON non valido: %w", err)
+		return nil, nil, fmt.Errorf(T("JSON non valido: %w"), err)
 	}
 	warns := jobWarningsLoad(q) // prima di normalizzare, che spegne il tonemap
 	return normalizeJobs(q), warns, nil
@@ -2299,7 +2299,7 @@ func jobWarningsLoad(q []Job) []string {
 	if !Tools.HasZscale {
 		for _, j := range q {
 			if j.ToneMap {
-				w = append(w, filepath.Base(j.InputPath)+": tonemap disattivato (zscale assente), resta HDR.")
+				w = append(w, filepath.Base(j.InputPath)+T(": tonemap disattivato (zscale assente), resta HDR."))
 			}
 		}
 	}
@@ -2336,7 +2336,7 @@ func printJob(i int, j Job) {
 	} else {
 		subs := []string{}
 		for _, s := range j.SelSubs {
-			subs = append(subs, fmt.Sprintf("[%d] %s", s.Index, trackLabel(s)))
+			subs = append(subs, fmt.Sprintf(T("[%d] %s"), s.Index, trackLabel(s)))
 		}
 		fmt.Printf("    Subs:   %s\n", strings.Join(subs, ", "))
 	}
@@ -2413,9 +2413,9 @@ func savingLine(in, out int64) string {
 	diff := in - out
 	pct := pctChange(in, out)
 	if diff >= 0 {
-		return fmt.Sprintf("%s%.1f%% (risparmiati %s)%s", C.Green, pct, humanSize(diff), C.Reset)
+		return fmt.Sprintf(T("%s%.1f%% (risparmiati %s)%s"), C.Green, pct, humanSize(diff), C.Reset)
 	}
-	return fmt.Sprintf("%s+%.1f%% (aumentato di %s)%s", C.Yellow, pct, humanSize(-diff), C.Reset)
+	return fmt.Sprintf(T("%s+%.1f%% (aumentato di %s)%s"), C.Yellow, pct, humanSize(-diff), C.Reset)
 }
 
 type fileRecap struct {
@@ -2445,14 +2445,14 @@ func printFileRecap(j Job, elapsed time.Duration) (int64, int64) {
 	r := computeRecap(j, elapsed)
 	note := ""
 	if r.Estimated {
-		note = C.Dim + " (test: stima sui primi 5 min dell'originale)" + C.Reset
+		note = C.Dim + T(" (test: stima sui primi 5 min dell'originale)") + C.Reset
 	}
 	fmt.Printf("   Originale: %s → Nuovo: %s  |  %s%s\n", humanSize(r.In), humanSize(r.Out), savingLine(r.In, r.Out), note)
 	speed := ""
 	if r.Speed > 0 {
-		speed = fmt.Sprintf(" (%.2fx realtime", r.Speed)
+		speed = fmt.Sprintf(T(" (%.2fx realtime"), r.Speed)
 		if r.AvgFPS > 0 {
-			speed += fmt.Sprintf(", %.1f fps medi", r.AvgFPS)
+			speed += fmt.Sprintf(T(", %.1f fps medi"), r.AvgFPS)
 		}
 		speed += ")"
 	}

@@ -64,7 +64,7 @@ func measureGrain(ctx context.Context, src string, info *MediaInfo) (GrainResult
 		}
 	}
 	if info.Width <= 0 || info.Height <= 0 || info.Duration <= 0 {
-		return GrainResult{}, errors.New("dimensioni o durata del video sconosciute")
+		return GrainResult{}, errors.New(T("dimensioni o durata del video sconosciute"))
 	}
 
 	var values []float64
@@ -82,7 +82,7 @@ func measureGrain(ctx context.Context, src string, info *MediaInfo) (GrainResult
 		}
 	}
 	if len(values) == 0 {
-		return GrainResult{}, errors.New("nessun frame utile per misurare la grana")
+		return GrainResult{}, errors.New(T("nessun frame utile per misurare la grana"))
 	}
 	sort.Float64s(values)
 	idx := values[len(values)/2]
@@ -118,7 +118,7 @@ func grayFrame(ctx context.Context, src string, info *MediaInfo, t float64) ([]u
 		_, _ = io.Copy(io.Discard, out)
 		werr := cmd.Wait()
 		if rerr != nil {
-			return nil, fmt.Errorf("frame a %.0f s: %w", t, rerr)
+			return nil, fmt.Errorf(T("frame a %.0f s: %w"), t, rerr)
 		}
 		if werr != nil {
 			return nil, werr

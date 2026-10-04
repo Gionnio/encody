@@ -25,6 +25,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Encody" "$APP/Contents/MacOS/Encody"
 cp "$BUILD/encody" "$APP/Contents/Resources/encody"
+# Lingue: italiano (base, le chiavi sono il testo italiano) e inglese
+cp -R "$ROOT/app/Resources/"*.lproj "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -39,6 +41,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
     <key>CFBundleDevelopmentRegion</key><string>it</string>
+    <key>CFBundleLocalizations</key><array><string>it</string><string>en</string></array>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.video</string>
     <key>NSHighResolutionCapable</key><true/>

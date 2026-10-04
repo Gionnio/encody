@@ -136,12 +136,12 @@ func headlessMain(args []string) (int, bool) {
 	segList := fs.String("segments", "", "") // inizi in secondi, separati da virgola
 	at := fs.Float64("at", -1, "")
 	if err := fs.Parse(args[1:]); err != nil {
-		return fail(fmt.Errorf("argomenti non validi: %w", err)), true
+		return fail(fmt.Errorf(T("argomenti non validi: %w"), err)), true
 	}
 	pos := fs.Args()
 	needFile := func() (string, error) {
 		if len(pos) < 1 {
-			return "", errors.New("percorso file mancante")
+			return "", errors.New(T("percorso file mancante"))
 		}
 		return cleanPath(pos[0]), nil
 	}
@@ -284,11 +284,11 @@ type probeOut struct {
 
 func cmdProbe(path string) int {
 	if !isVideo(path) {
-		return fail(fmt.Errorf("estensione non supportata: %s", filepath.Ext(path)))
+		return fail(fmt.Errorf(T("estensione non supportata: %s"), filepath.Ext(path)))
 	}
 	info, err := probeFile(path)
 	if err != nil {
-		return fail(fmt.Errorf("ffprobe: %w", err))
+		return fail(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	out := probeOut{
 		Path: path, Name: filepath.Base(path), Size: fileSize(path), Duration: info.Duration, FPS: fpsValue(info.FPSStr),
@@ -318,10 +318,10 @@ func cmdProbe(path string) int {
 		out.Audio[0].Suggested = true
 	}
 	if info.DVProfile == 5 {
-		out.Warnings = append(out.Warnings, "Dolby Vision profilo 5: il base layer non è HDR10, un encode avrà colori sbagliati (verde/viola). Usa il Remux o salta il file.")
+		out.Warnings = append(out.Warnings, T("Dolby Vision profilo 5: il base layer non è HDR10, un encode avrà colori sbagliati (verde/viola). Usa il Remux o salta il file."))
 	}
 	if len(out.Audio) == 0 {
-		out.Warnings = append(out.Warnings, "Nessuna traccia audio nel file.")
+		out.Warnings = append(out.Warnings, T("Nessuna traccia audio nel file."))
 	}
 
 	out.Job = Job{
@@ -341,7 +341,7 @@ func cmdProbe(path string) int {
 func cmdCrop(path string) int {
 	info, err := probeFile(path)
 	if err != nil {
-		return fail(fmt.Errorf("ffprobe: %w", err))
+		return fail(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	printJSON(map[string]any{"crop": detectCropQuiet(path, info.Duration)})
 	return 0
@@ -369,7 +369,7 @@ type planOut struct {
 func cmdPlan(r io.Reader) int {
 	var q []Job
 	if err := json.NewDecoder(r).Decode(&q); err != nil {
-		return fail(fmt.Errorf("JSON non valido: %w", err))
+		return fail(fmt.Errorf(T("JSON non valido: %w"), err))
 	}
 	q = normalizeJobs(q)
 	outs := make([]planOut, 0, len(q))
@@ -384,32 +384,32 @@ func cmdPlan(r io.Reader) int {
 		p.CanToneMap = isHDR(j.MetaType) && j.Preset.Type != "copy" && Tools.HasZscale
 		p.MustToneMap = mustToneMap(j.MetaType, j.Preset)
 		if len(j.Preset.VideoOpts) == 0 {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("Preset %q non trovato: è stato eliminato o rinominato.", j.Preset.ID))
+			p.Warnings = append(p.Warnings, fmt.Sprintf(T("Preset %q non trovato: è stato eliminato o rinominato."), j.Preset.ID))
 		}
 		if p.MustToneMap && !Tools.HasZscale {
-			p.Warnings = append(p.Warnings, "Encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR, ma FFmpeg non lo ha.")
+			p.Warnings = append(p.Warnings, T("Encoder a 8 bit su sorgente HDR: serve zscale per convertire in SDR, ma FFmpeg non lo ha."))
 		}
 		if j.MetaType == "DV" || j.MetaType == "HDR10+" {
 			p.InjectBlocker = injectBlocker(j.MetaType, j.DVProfile, j.Preset)
 			// indipendente dalla scelta SDR: la GUI deve poter offrire tutte le opzioni insieme
 			if j.Preset.Type == "copy" {
-				p.InjectBlocker = "il remux mantiene già i metadati originali"
+				p.InjectBlocker = T("il remux mantiene già i metadati originali")
 			}
 			p.CanInject = p.InjectBlocker == ""
 		} else {
-			p.InjectBlocker = "la sorgente non ha metadati dinamici"
+			p.InjectBlocker = T("la sorgente non ha metadati dinamici")
 		}
 		if len(j.SelAudio) == 0 {
-			p.Warnings = append(p.Warnings, "Nessuna traccia audio selezionata: il file sarà muto.")
+			p.Warnings = append(p.Warnings, T("Nessuna traccia audio selezionata: il file sarà muto."))
 		}
 		if j.DVProfile == 5 && j.Preset.Type != "copy" {
-			p.Warnings = append(p.Warnings, "Dolby Vision profilo 5: i colori usciranno sbagliati.")
+			p.Warnings = append(p.Warnings, T("Dolby Vision profilo 5: i colori usciranno sbagliati."))
 		}
 		if j.DoInject && !j.ToneMap && !p.CanInject {
-			p.Warnings = append(p.Warnings, "Inject impossibile: "+p.InjectBlocker+".")
+			p.Warnings = append(p.Warnings, T("Inject impossibile: ")+p.InjectBlocker+".")
 		}
 		if j.OutputPath != "" && j.OutputPath == j.InputPath {
-			p.Warnings = append(p.Warnings, "L'output coincide con il file di origine.")
+			p.Warnings = append(p.Warnings, T("L'output coincide con il file di origine."))
 		}
 		outs = append(outs, p)
 	}
@@ -461,7 +461,7 @@ func cmdRun(ctx context.Context, path string) int {
 				"estimated", rc.Estimated, "speed", rc.Speed, "avg_fps", rc.AvgFPS))
 		default:
 			failCount++
-			emit("job_done", with(done, "status", "fail", "error", "terminato senza conferma di completamento"))
+			emit("job_done", with(done, "status", "fail", "error", T("terminato senza conferma di completamento")))
 		}
 	}
 
@@ -480,7 +480,7 @@ func cmdRun(ctx context.Context, path string) int {
 func cmdBench(ctx context.Context, src, presetList, metric, segList string) int {
 	info, err := probeFile(src)
 	if err != nil {
-		return failEvent(fmt.Errorf("ffprobe: %w", err))
+		return failEvent(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	// Spezzoni indicati dall'app (scelta manuale o analisi già fatta); altrimenti analisi qui
 	var segs []BenchSegment
@@ -493,10 +493,10 @@ func cmdBench(ctx context.Context, src, presetList, metric, segList string) int 
 		metric = defaultMetric(info)
 	}
 	if metric == "ssim" {
-		return failEvent(errors.New("il benchmark usa vmaf, xpsnr o cvvdp"))
+		return failEvent(errors.New(T("il benchmark usa vmaf, xpsnr o cvvdp")))
 	}
 	if err := metricAvailable(metric); err != nil {
-		return failEvent(fmt.Errorf("benchmark non disponibile: %w", err))
+		return failEvent(fmt.Errorf(T("benchmark non disponibile: %w"), err))
 	}
 	ids := []string{}
 	for _, s := range strings.Split(presetList, ",") {
@@ -507,7 +507,7 @@ func cmdBench(ctx context.Context, src, presetList, metric, segList string) int 
 		}
 	}
 	if len(ids) == 0 {
-		return failEvent(errors.New("nessun preset valido selezionato"))
+		return failEvent(errors.New(T("nessun preset valido selezionato")))
 	}
 
 	emit("bench_start", map[string]any{"name": filepath.Base(src), "meta_type": info.MetaType, "duration": info.Duration,
@@ -526,7 +526,7 @@ func cmdBench(ctx context.Context, src, presetList, metric, segList string) int 
 			if ctx.Err() != nil {
 				return 130
 			}
-			emit("info", map[string]any{"message": "Analisi spezzoni non riuscita, si usa quello centrale: " + err.Error()})
+			emit("info", map[string]any{"message": T("Analisi spezzoni non riuscita, si usa quello centrale: ") + err.Error()})
 		}
 		segs = a.Segments
 	}
@@ -571,7 +571,7 @@ func cmdBench(ctx context.Context, src, presetList, metric, segList string) int 
 
 func cmdQuality(ctx context.Context, ref, dist, metric string) int {
 	if ref == "" || dist == "" {
-		return failEvent(errors.New("servono --ref e --dist"))
+		return failEvent(errors.New(T("servono --ref e --dist")))
 	}
 	if err := metricAvailable(metric); err != nil {
 		return failEvent(err)
@@ -593,7 +593,7 @@ func cmdQuality(ctx context.Context, ref, dist, metric string) int {
 func cmdSegments(ctx context.Context, src string) int {
 	info, err := probeFile(src)
 	if err != nil {
-		return failEvent(fmt.Errorf("ffprobe: %w", err))
+		return failEvent(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	a, err := analyzeSegments(ctx, src, info, eventProgress(nil))
 	if err != nil {
@@ -611,14 +611,14 @@ func cmdSegments(ctx context.Context, src string) int {
 func cmdThumb(ctx context.Context, src string, at float64) int {
 	info, err := probeFile(src)
 	if err != nil {
-		return fail(fmt.Errorf("ffprobe: %w", err))
+		return fail(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	if at < 0 || at >= info.Duration {
 		return fail(errors.New("--at fuori dalla durata del file"))
 	}
 	dir := segmentCachePath(src)
 	if dir == "" {
-		return fail(errors.New("cartella cache non disponibile"))
+		return fail(errors.New(T("cartella cache non disponibile")))
 	}
 	p, err := makeThumb(ctx, src, info, dir, math.Min(at+SegmentSeconds/2, info.Duration-0.5))
 	if err != nil {
@@ -632,7 +632,7 @@ func cmdThumb(ctx context.Context, src string, at float64) int {
 func cmdGrain(ctx context.Context, src string) int {
 	info, err := probeFile(src)
 	if err != nil {
-		return fail(fmt.Errorf("ffprobe: %w", err))
+		return fail(fmt.Errorf(T("ffprobe: %w"), err))
 	}
 	g, err := measureGrain(ctx, src, info)
 	if err != nil {

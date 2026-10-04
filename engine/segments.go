@@ -98,12 +98,12 @@ func analyzeSegments(ctx context.Context, src string, info *MediaInfo, on func(P
 	// File corti: tre spezzoni non hanno senso
 	if info.Duration < SegmentCount*SegmentSeconds*4 {
 		a := SegmentAnalysis{Version: segAnalysisVer, Segments: centerSegment(info)}
-		a.Warnings = append(a.Warnings, "File corto: si usa un unico spezzone centrale.")
+		a.Warnings = append(a.Warnings, T("File corto: si usa un unico spezzone centrale."))
 		addThumbs(ctx, src, info, cache, a.Segments)
 		return a, nil
 	}
 
-	on(ProgressUpdate{Step: "Analisi bitrate"})
+	on(ProgressUpdate{Step: T("Analisi bitrate")})
 	rate, keyframes, err := packetBitrate(ctx, src, info)
 	if err != nil {
 		return SegmentAnalysis{}, err
@@ -175,7 +175,7 @@ func packetBitrate(ctx context.Context, src string, info *MediaInfo) ([]float64,
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
-		return nil, nil, fmt.Errorf("analisi pacchetti: %w", err)
+		return nil, nil, fmt.Errorf(T("analisi pacchetti: %w"), err)
 	}
 	sort.Float64s(keys)
 	return rate, keys, nil
@@ -206,7 +206,7 @@ func keyframeLuma(ctx context.Context, src string, info *MediaInfo, on func(Prog
 		var err error
 		go func() {
 			defer close(ch)
-			_, err = runFFmpegPiped(ctx, args, ch, "Analisi luminosità", info.Duration)
+			_, err = runFFmpegPiped(ctx, args, ch, T("Analisi luminosità"), info.Duration)
 		}()
 		for u := range ch {
 			on(u)
@@ -241,7 +241,7 @@ func keyframeLuma(ctx context.Context, src string, info *MediaInfo, on func(Prog
 		}
 	}
 	if len(out) == 0 {
-		return nil, errors.New("analisi luminosità: nessun keyframe letto")
+		return nil, errors.New(T("analisi luminosità: nessun keyframe letto"))
 	}
 	return out, nil
 }
@@ -336,7 +336,7 @@ func chooseSegments(duration float64, rate, keys []float64, samples []lumaSample
 		if !ok {
 			// film o zona molto scuri: basta che non ci siano neri
 			w, ok = pick(func(w window) bool { return !w.black })
-			note = "Zona scura: scelta la scena migliore disponibile."
+			note = T("Zona scura: scelta la scena migliore disponibile.")
 		}
 		if !ok {
 			// solo nero o dissolvenze: la finestra meno scura
@@ -346,13 +346,13 @@ func chooseSegments(duration float64, rate, keys []float64, samples []lumaSample
 					w = c
 				}
 			}
-			note = "Zona quasi tutta nera: risultato poco affidabile."
+			note = T("Zona quasi tutta nera: risultato poco affidabile.")
 		}
 		start := snapToKeyframe(w.start, keys)
 		seg := BenchSegment{Start: start, Duration: SegmentSeconds, Luma: w.luma, Bitrate: int64(w.bitrate), Note: note}
 		a.Segments = append(a.Segments, seg)
 		if note != "" {
-			a.Warnings = append(a.Warnings, fmt.Sprintf("Spezzone %d: %s", z+1, note))
+			a.Warnings = append(a.Warnings, fmt.Sprintf(T("Spezzone %d: %s"), z+1, note))
 		}
 	}
 	return a
@@ -400,7 +400,7 @@ func makeThumb(ctx context.Context, src string, info *MediaInfo, dir string, at 
 		"-ss", fmt.Sprintf("%.3f", at), "-i", src, "-map", fmt.Sprintf("0:%d", info.VideoIndex),
 		"-frames:v", "1", "-vf", vf, "-q:v", "4", out)
 	if msg, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("miniatura: %w\n%s", err, tail(msg, 5))
+		return "", fmt.Errorf(T("miniatura: %w\n%s"), err, tail(msg, 5))
 	}
 	return out, nil
 }
@@ -415,16 +415,16 @@ func parseSegmentStarts(list string, info *MediaInfo) ([]BenchSegment, error) {
 		}
 		t, err := strconv.ParseFloat(f, 64)
 		if err != nil || t < 0 {
-			return nil, fmt.Errorf("inizio spezzone non valido: %q", f)
+			return nil, fmt.Errorf(T("inizio spezzone non valido: %q"), f)
 		}
 		if info.Duration > 0 && t >= info.Duration {
-			return nil, fmt.Errorf("inizio spezzone oltre la fine del file: %s", f)
+			return nil, fmt.Errorf(T("inizio spezzone oltre la fine del file: %s"), f)
 		}
 		d := math.Min(SegmentSeconds, info.Duration-t)
 		segs = append(segs, BenchSegment{Start: t, Duration: d})
 	}
 	if len(segs) == 0 {
-		return nil, errors.New("nessuno spezzone indicato")
+		return nil, errors.New(T("nessuno spezzone indicato"))
 	}
 	sort.Slice(segs, func(i, j int) bool { return segs[i].Start < segs[j].Start })
 	return segs, nil

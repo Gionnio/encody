@@ -72,7 +72,7 @@ private struct PresetListView: View {
         List(selection: Binding(get: { pm.isNew ? nil : pm.selectedID }, set: { pm.select($0) })) {
             if pm.isNew, let d = pm.draft {
                 Section("Nuovo") {
-                    PresetRow(name: d.name.isEmpty ? "Senza nome" : d.name, summary: "non ancora salvato",
+                    PresetRow(name: d.name.isEmpty ? String(localized: "Senza nome") : d.name, summary: String(localized: "non ancora salvato"),
                               verified: false, unsaved: true)
                 }
             }
@@ -147,7 +147,7 @@ private struct PresetRow: View {
 
 enum PresetText {
     static func summary(_ s: PresetSpec, encoders: [EncoderCap], withEncoder: Bool = true) -> String {
-        if s.encoder == "copy" { return "Remux: video copiato" }
+        if s.encoder == "copy" { return String(localized: "Remux: video copiato") }
         let e = encoders.first { $0.id == s.encoder }
         var parts = withEncoder ? [shortName(s.encoder)] : []
         switch s.rate.mode {
@@ -161,7 +161,7 @@ enum PresetText {
 
     static func shortName(_ enc: String) -> String {
         ["libx265": "x265", "hevc_videotoolbox": "VideoToolbox HEVC", "libsvtav1": "SVT-AV1",
-         "libx264": "x264", "h264_videotoolbox": "VideoToolbox H.264", "copy": "Remux"][enc] ?? enc
+         "libx264": "x264", "h264_videotoolbox": "VideoToolbox H.264", "copy": String(localized: "Remux")][enc] ?? enc
     }
 
     static func format(_ v: Double) -> String {
@@ -182,7 +182,7 @@ private struct BuiltinPresetView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(preset.name).font(.title3.weight(.semibold))
-                        Chip("di sistema")
+                        Chip(String(localized: "di sistema"))
                     }
                     if let d = preset.description, !d.isEmpty { Text(d).foregroundStyle(.secondary) }
                 }
@@ -197,9 +197,9 @@ private struct BuiltinPresetView: View {
                     if let p = s.params, !p.isEmpty {
                         LabeledContent("Parametri encoder") { Text(p).font(.caption.monospaced()).textSelection(.enabled) }
                     }
-                    LabeledContent("Audio", value: "AC3 stereo \(s.audio.bitrate) · copia: \((s.audio.passthrough ?? []).joined(separator: ", "))")
-                    LabeledContent("HDR", value: preset.hdr == false ? "convertito in SDR" : "conservato")
-                    LabeledContent("Dolby Vision / HDR10+", value: preset.dynamic == true ? "reinseribili" : "non reinseribili")
+                    LabeledContent("Audio", value: String(localized: "AC3 stereo \(s.audio.bitrate) · copia: \((s.audio.passthrough ?? []).joined(separator: ", "))"))
+                    LabeledContent("HDR", value: preset.hdr == false ? String(localized: "convertito in SDR") : String(localized: "conservato"))
+                    LabeledContent("Dolby Vision / HDR10+", value: preset.dynamic == true ? String(localized: "reinseribili") : String(localized: "non reinseribili"))
                 }
                 Section("Comando FFmpeg (esempio con sorgente HDR10)") {
                     Text(command ?? "…")
@@ -320,7 +320,7 @@ private struct VideoSection: View {
             FieldIssues(field: "encoder")
 
             if let cap {
-                Picker("Controllo", selection: Binding(get: { spec.rate.mode }, set: { changeMode(to: $0, cap: cap) })) {
+                Picker("Regolazione", selection: Binding(get: { spec.rate.mode }, set: { changeMode(to: $0, cap: cap) })) {
                     ForEach(cap.rateModes, id: \.self) { m in
                         Text(m == "bitrate" ? "Bitrate" : (m == "crf" ? "Qualità costante (CRF)" : "Qualità fissa")).tag(m)
                     }
@@ -363,8 +363,8 @@ private struct VideoSection: View {
                         ForEach(speeds, id: \.self) { s in Text(speedLabel(s, cap: cap)).tag(s) }
                     }
                     Text(cap.id == "libsvtav1"
-                         ? "Numeri bassi = più lento, file più piccoli a pari qualità. 4–6 è un buon compromesso."
-                         : "Più lento = file più piccoli a pari qualità. medium e slow sono i più usati.")
+                         ? String(localized: "Numeri bassi = più lento, file più piccoli a pari qualità. 4–6 è un buon compromesso.")
+                         : String(localized: "Più lento = file più piccoli a pari qualità. medium e slow sono i più usati."))
                         .font(.caption).foregroundStyle(.secondary)
                     FieldIssues(field: "speed")
                 }
@@ -382,22 +382,22 @@ private struct VideoSection: View {
     }
 
     private func encoderNote(_ c: EncoderCap) -> String {
-        var s = [c.hardware ? "Usa la GPU del Mac: molto veloce, controllo fine limitato." : "Usa la CPU: lento ma con il massimo controllo."]
-        s.append(c.tenBit ? "Conserva l'HDR (10 bit)." : "8 bit: le sorgenti HDR vengono convertite in SDR.")
-        s.append(c.dynamic ? "Dolby Vision e HDR10+ reinseribili." : "Dolby Vision e HDR10+ non reinseribili.")
+        var s = [c.hardware ? String(localized: "Usa la GPU del Mac: molto veloce, controllo fine limitato.") : String(localized: "Usa la CPU: lento ma con il massimo controllo.")]
+        s.append(c.tenBit ? String(localized: "Conserva l'HDR (10 bit).") : String(localized: "8 bit: le sorgenti HDR vengono convertite in SDR."))
+        s.append(c.dynamic ? String(localized: "Dolby Vision e HDR10+ reinseribili.") : String(localized: "Dolby Vision e HDR10+ non reinseribili."))
         return s.joined(separator: " ")
     }
 
     private func qualityHint(_ c: EncoderCap) -> String {
         switch c.id {
-        case "libx265", "libx264": "CRF più basso = qualità più alta e file più grandi. 16–18 trasparente, 20–22 buono, oltre 24 si vedono artefatti."
-        case "libsvtav1": "CRF più basso = qualità più alta. Per il 4K 24–30 è un buon intervallo; sotto 20 i file crescono molto."
-        default: "Qualità più alta = file più grandi. 60–70 è un buon intervallo per il 4K."
+        case "libx265", "libx264": String(localized: "CRF più basso = qualità più alta e file più grandi. 16–18 trasparente, 20–22 buono, oltre 24 si vedono artefatti.")
+        case "libsvtav1": String(localized: "CRF più basso = qualità più alta. Per il 4K 24–30 è un buon intervallo; sotto 20 i file crescono molto.")
+        default: String(localized: "Qualità più alta = file più grandi. 60–70 è un buon intervallo per il 4K.")
         }
     }
 
     private func speedLabel(_ s: String, cap: EncoderCap) -> String {
-        s == cap.speedDefault ? "\(s) (predefinita)" : s
+        s == cap.speedDefault ? String(localized: "\(s) (predefinita)") : s
     }
 
     private func changeEncoder(to id: String) {
@@ -502,7 +502,7 @@ private struct AudioSection: View {
 
     private var passLabel: String {
         let sel = codecs.filter { spec.audio.passthrough?.contains($0) ?? false }
-        return sel.isEmpty ? "Nessuno (tutto in AC3)" : sel.map(label).joined(separator: ", ")
+        return sel.isEmpty ? String(localized: "Nessuno (tutto in AC3)") : sel.map(label).joined(separator: ", ")
     }
 
     private func label(_ c: String) -> String {
@@ -555,7 +555,7 @@ private struct TestSection: View {
         Section {
             LabeledContent("Clip di prova") {
                 HStack {
-                    Text(pm.sampleURL?.lastPathComponent ?? "4K HDR10 generato")
+                    Text(pm.sampleURL?.lastPathComponent ?? String(localized: "4K HDR10 generato"))
                         .lineLimit(1).truncationMode(.middle)
                         .foregroundStyle(.secondary)
                     if pm.sampleURL != nil {
@@ -567,7 +567,7 @@ private struct TestSection: View {
             HStack {
                 if pm.isTesting {
                     ProgressView().controlSize(.small)
-                    Text(pm.testStep.isEmpty ? "Preparazione" : pm.testStep).foregroundStyle(.secondary)
+                    Text(pm.testStep.isEmpty ? String(localized: "Preparazione") : pm.testStep).foregroundStyle(.secondary)
                     Spacer()
                     Button("Stop") { pm.stopTest() }
                 } else {
@@ -599,7 +599,7 @@ private struct TestSection: View {
             }
             if let fps = pm.testFPS, fps > 0 {
                 LabeledContent("Velocità sul clip") {
-                    Text(String(format: "%.1f fps · un film di 2 ore ≈ %@", fps, Fmt.duration(2 * 3600 * 23.976 / fps)))
+                    Text(String(format: String(localized: "%.1f fps · un film di 2 ore ≈ %@"), fps, Fmt.duration(2 * 3600 * 23.976 / fps)))
                         .monospacedDigit()
                 }
             }
@@ -630,7 +630,7 @@ private struct EditorBar: View {
                     .font(.caption).foregroundStyle(.green)
             } else if pm.hasChanges {
                 Text(pm.testIsCurrent && pm.testPassed == true ? "Prova superata: puoi salvare."
-                     : "Il preset si salva dopo una prova reale superata.")
+                     : String(localized: "Il preset si salva dopo una prova reale superata."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()

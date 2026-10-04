@@ -237,9 +237,9 @@ enum GrainLevel: String, Decodable, Sendable {
 
     var label: String {
         switch self {
-        case .low: "bassa"
-        case .medium: "media"
-        case .high: "alta"
+        case .low: String(localized: "bassa")
+        case .medium: String(localized: "media")
+        case .high: String(localized: "alta")
         }
     }
 
@@ -351,10 +351,10 @@ enum QualityMetric: String, CaseIterable, Identifiable {
 
     var info: String {
         switch self {
-        case .vmaf: "VMAF (0–100): qualità percepita, modello vmaf_v0.6.1 addestrato su SDR. Sopra 95 la differenza è in pratica invisibile."
-        case .xpsnr: "XPSNR (dB): PSNR pesato sulla sensibilità visiva, lavora a 10 bit e va bene anche sull'HDR. Sopra 45 dB la differenza è in pratica invisibile."
-        case .cvvdp: "ColorVideoVDP (JOD, max 10): modello della visione con display HDR PQ da 1500 nit, il più preciso per l'HDR. Sopra 9,5 la differenza è invisibile. Molto lento."
-        case .ssim: "SSIM (0–1): somiglianza strutturale, media sui frame. Più veloce di VMAF."
+        case .vmaf: String(localized: "VMAF (0–100): qualità percepita, modello vmaf_v0.6.1 addestrato su SDR. Sopra 95 la differenza è in pratica invisibile.")
+        case .xpsnr: String(localized: "XPSNR (dB): PSNR pesato sulla sensibilità visiva, lavora a 10 bit e va bene anche sull'HDR. Sopra 45 dB la differenza è in pratica invisibile.")
+        case .cvvdp: String(localized: "ColorVideoVDP (JOD, max 10): modello della visione con display HDR PQ da 1500 nit, il più preciso per l'HDR. Sopra 9,5 la differenza è invisibile. Molto lento.")
+        case .ssim: String(localized: "SSIM (0–1): somiglianza strutturale, media sui frame. Più veloce di VMAF.")
         }
     }
 
@@ -400,11 +400,11 @@ enum QualityMetric: String, CaseIterable, Identifiable {
 
     /// Disponibilità in base al motore; nil se disponibile, altrimenti il motivo
     func unavailableReason(_ caps: Caps?) -> String? {
-        guard let caps else { return "motore non caricato" }
+        guard let caps else { return String(localized: "motore non caricato") }
         switch self {
-        case .vmaf: return caps.hasVmaf ? nil : "FFmpeg senza libvmaf"
-        case .xpsnr: return caps.hasXpsnr == true ? nil : "FFmpeg senza xpsnr (serve 7.1+)"
-        case .cvvdp: return (caps.cvvdp ?? "").isEmpty ? "ColorVideoVDP non installato (Impostazioni)" : nil
+        case .vmaf: return caps.hasVmaf ? nil : String(localized: "FFmpeg senza libvmaf")
+        case .xpsnr: return caps.hasXpsnr == true ? nil : String(localized: "FFmpeg senza xpsnr (serve 7.1+)")
+        case .cvvdp: return (caps.cvvdp ?? "").isEmpty ? String(localized: "ColorVideoVDP non installato (Impostazioni)") : nil
         case .ssim: return nil
         }
     }

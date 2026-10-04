@@ -85,8 +85,8 @@ struct QueueView: View {
             Button("Annulla", role: .cancel) { confirmClear = nil }
         } message: {
             Text(model.isRunning
-                 ? "Le impostazioni scelte per questi file andranno perse. I file in codifica restano in coda; i file su disco non vengono toccati."
-                 : "Le impostazioni scelte per questi file andranno perse. I file su disco non vengono toccati.")
+                 ? String(localized: "Le impostazioni scelte per questi file andranno perse. I file in codifica restano in coda; i file su disco non vengono toccati.")
+                 : String(localized: "Le impostazioni scelte per questi file andranno perse. I file su disco non vengono toccati."))
         }
         .sheet(isPresented: $model.showRecap) {
             if let r = model.recap { RecapSheet(recap: r) }
@@ -278,7 +278,7 @@ struct QueueRow: View {
     }
 
     private var subtitle: String {
-        let presetName = model.preset(item.presetID)?.name ?? "Preset \(item.presetID)"
+        let presetName = model.preset(item.presetID)?.name ?? String(localized: "Preset \(item.presetID)")
         switch item.status {
         case .ready, .done, .failed, .stopped, .queued:
             return presetName + " · " + (item.plan?.videoLabel ?? item.status.label)
@@ -369,7 +369,7 @@ struct JobEditorView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView("File non leggibile", systemImage: "exclamationmark.triangle",
-                                   description: Text(item.probeError ?? "Errore sconosciuto"))
+                                   description: Text(item.probeError ?? String(localized: "Errore sconosciuto")))
         }
     }
 }
@@ -445,9 +445,9 @@ private struct WarningsSection: View {
         var w = probe.warnings
         for pw in item.plan?.warnings ?? [] where !w.contains(pw) { w.append(pw) }
         if item.status != .done, FileManager.default.fileExists(atPath: item.outputURL.path) {
-            w.append("Il file di output esiste già e verrà sovrascritto.")
+            w.append(String(localized: "Il file di output esiste già e verrà sovrascritto."))
         }
-        if let e = item.planError { w.append("Piano non disponibile: \(e)") }
+        if let e = item.planError { w.append(String(localized: "Piano non disponibile: \(e)")) }
         return w
     }
 }
@@ -559,25 +559,25 @@ private struct RangeExplanation: View {
         switch mode {
         case .dynamic:
             var l = [
-                dv ? "Output Dolby Vision profilo 8.1: le TV Dolby Vision usano i metadati scena per scena dell'originale, tutte le altre riproducono il base layer HDR10."
-                   : "Output HDR10+: le TV HDR10+ usano i metadati scena per scena dell'originale, tutte le altre riproducono l'HDR10.",
-                "Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento, richiede spazio temporaneo, niente crop né ridimensionamento.",
+                dv ? String(localized: "Output Dolby Vision profilo 8.1: le TV Dolby Vision usano i metadati scena per scena dell'originale, tutte le altre riproducono il base layer HDR10.")
+                   : String(localized: "Output HDR10+: le TV HDR10+ usano i metadati scena per scena dell'originale, tutte le altre riproducono l'HDR10."),
+                String(localized: "Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento, richiede spazio temporaneo, niente crop né ridimensionamento."),
             ]
             if dv && probe.dvProfile == 7 {
-                l.append("La sorgente è profilo 7 (dual layer): viene convertita in 8.1 e l'enhancement layer va perso.")
+                l.append(String(localized: "La sorgente è profilo 7 (dual layer): viene convertita in 8.1 e l'enhancement layer va perso."))
             }
             return l
         case .hdr:
-            if probe.metaType == "HLG" { return ["Mantiene l'HLG della sorgente."] }
+            if probe.metaType == "HLG" { return [String(localized: "Mantiene l'HLG della sorgente.")] }
             if probe.hasDynamicMetadata {
                 return [
-                    "Codifica solo il base layer HDR10 e scarta i metadati \(probe.metaType): ogni TV HDR lo riproduce, ma il tonemapping usa valori fissi per tutto il film invece che scena per scena.",
-                    "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Veloce e con crop possibile.",
+                    String(localized: "Codifica solo il base layer HDR10 e scarta i metadati \(probe.metaType): ogni TV HDR lo riproduce, ma il tonemapping usa valori fissi per tutto il film invece che scena per scena."),
+                    String(localized: "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Veloce e con crop possibile."),
                 ]
             }
-            return ["Mantiene l'HDR10 della sorgente."]
+            return [String(localized: "Mantiene l'HDR10 della sorgente.")]
         case .sdr:
-            return ["Converte in SDR BT.709 (linearizzazione, tonemap, conversione colore): guardabile su qualsiasi schermo. Più lento, i metadati HDR vengono scartati."]
+            return [String(localized: "Converte in SDR BT.709 (linearizzazione, tonemap, conversione colore): guardabile su qualsiasi schermo. Più lento, i metadati HDR vengono scartati.")]
         }
     }
 }
@@ -632,11 +632,13 @@ private struct AudioSection: View {
         case "eac3":
             return "AC3/E-AC3 e tracce stereo copiate; TrueHD, DTS e FLAC convertiti in E-AC3 640k (max 5.1, 7.1 ridotto a 5.1)."
         case "aac":
-            return "Tutto in AAC 256k stereo: massima compatibilità, qualità e spazialità minori."
+            return String(localized: "Tutto in AAC 256k stereo: massima compatibilità, qualità e spazialità minori.")
         default:
-            if p?.isCopy == true { return "Remux: tutte le tracce copiate così come sono." }
+            if p?.isCopy == true { return String(localized: "Remux: tutte le tracce copiate così come sono.") }
             let pass = p?.passthroughLabel ?? ""
-            return "Copia \(pass.isEmpty ? "i formati supportati" : pass); il resto in AC3 (multicanale 640k, stereo \(p?.audioBitrate ?? "320k"))."
+            let what = pass.isEmpty ? String(localized: "i formati supportati") : pass
+            let stereo = p?.audioBitrate ?? "320k"
+            return String(localized: "Copia \(what); il resto in AC3 (multicanale 640k, stereo \(stereo)).")
         }
     }
 }
@@ -778,7 +780,7 @@ private struct MultiSelectionView: View {
                     HStack(spacing: 6) {
                         Chip(Fmt.bytes(sel.compactMap(\.probe?.size).reduce(0, +)))
                         Chip(Fmt.duration(sel.compactMap(\.probe?.duration).reduce(0, +)))
-                        Chip("\(sel.filter(\.enabled).count) attivi")
+                        Chip(String(localized: "\(sel.filter(\.enabled).count) attivi"))
                     }
                 }
             }
@@ -857,7 +859,7 @@ struct RecapSheet: View {
             Table(recap.rows) {
                 TableColumn("") { r in StatusIcon(status: r.status) }
                     .width(22)
-                TableColumn("File") { r in
+                TableColumn(String(localized: "File")) { r in
                     Text(r.name).lineLimit(1).truncationMode(.middle).help(r.name)
                 }
                 TableColumn("Originale") { r in

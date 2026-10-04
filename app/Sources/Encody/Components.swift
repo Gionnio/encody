@@ -40,7 +40,7 @@ struct GrainBadge: View {
                 .padding(.vertical, 2)
                 .background(grain.level.color.opacity(0.18), in: Capsule())
                 .foregroundStyle(grain.level.color)
-                .help(String(format: "Indice di grana %.2f (bassa < 1, media 1–2, alta ≥ 2)", grain.index))
+                .help(String(format: String(localized: "Indice di grana %.2f (bassa < 1, media 1–2, alta ≥ 2)"), grain.index))
         }
     }
 }
@@ -91,8 +91,8 @@ struct SavingLabel: View {
         let diff = inBytes - outBytes
         let saved = diff >= 0
         Label(saved
-              ? String(format: "%.1f%% · risparmiati %@", pct, Fmt.bytes(diff))
-              : String(format: "+%.1f%% · aumentato di %@", pct, Fmt.bytes(-diff)),
+              ? String(format: String(localized: "%.1f%% · risparmiati %@"), pct, Fmt.bytes(diff))
+              : String(format: String(localized: "+%.1f%% · aumentato di %@"), pct, Fmt.bytes(-diff)),
               systemImage: saved ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
             .font(.caption.weight(.medium))
             .foregroundStyle(saved ? Color.green : Color.orange)
@@ -141,7 +141,7 @@ struct TrackRow: View {
         if let t = track.sel.title, !t.isEmpty { d.append("“\(t)”") }
         if let br = Fmt.bitrate(track.bitRate), track.sel.channels ?? 0 > 0 { d.append("~" + br) }
         if track.sel.channels ?? 0 == 0 {
-            d.append(track.imageBased ? "immagine" : "testo")
+            d.append(track.imageBased ? String(localized: "immagine") : String(localized: "testo"))
             if track.frames > 0 { d.append("\(track.frames) righe") }
         }
         if track.sel.isDefault == true { d.append("default") }
@@ -167,7 +167,7 @@ struct FilePickRow: View {
     var body: some View {
         LabeledContent(title) {
             HStack {
-                Text(url?.lastPathComponent ?? "Trascina qui o scegli…")
+                Text(url?.lastPathComponent ?? String(localized: "Trascina qui o scegli…"))
                     .foregroundStyle(url == nil ? Color.secondary : Color.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)

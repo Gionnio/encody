@@ -95,7 +95,7 @@ final class PresetsModel {
                                             rate: PresetRate(mode: "crf", value: 18), speed: "medium",
                                             audio: PresetAudio(bitrate: "320k", passthrough: ["aac", "ac3", "eac3", "truehd", "dts", "opus", "flac"]))
         spec.id = UUID().uuidString.lowercased()
-        spec.name = base.map { "Copia di \($0.name)" } ?? "Nuovo preset"
+        spec.name = base.map { String(localized: "Copia di \($0.name)") } ?? String(localized: "Nuovo preset")
         spec.builtin = nil
         spec.verified = nil
         spec.schema = 1
@@ -182,7 +182,7 @@ final class PresetsModel {
                             self.testRun = nil
                             if code != 0 && code != 130 && self.testPassed == nil && self.errorMessage == nil {
                                 let msg = err.trimmingCharacters(in: .whitespacesAndNewlines)
-                                self.errorMessage = msg.isEmpty ? "Prova terminata con codice \(code)" : msg
+                                self.errorMessage = msg.isEmpty ? String(localized: "Prova terminata con codice \(code)") : msg
                             }
                             if self.saveAfterTest, self.testPassed == true, self.testIsCurrent {
                                 self.save()
@@ -240,7 +240,7 @@ final class PresetsModel {
             try FileManager.default.createDirectory(at: presetDir, withIntermediateDirectories: true)
             try JSONCoding.encoder.encode(spec).write(to: presetDir.appending(path: "\(spec.id).json"), options: .atomic)
         } catch {
-            errorMessage = "Salvataggio non riuscito: \(error.localizedDescription)"
+            errorMessage = String(localized: "Salvataggio non riuscito: \(error.localizedDescription)")
             return
         }
         draft = spec
@@ -288,7 +288,7 @@ final class PresetsModel {
         do {
             try JSONCoding.encoder.encode(out).write(to: url, options: .atomic)
         } catch {
-            errorMessage = "Esportazione non riuscita: \(error.localizedDescription)"
+            errorMessage = String(localized: "Esportazione non riuscita: \(error.localizedDescription)")
         }
     }
 
@@ -310,7 +310,7 @@ final class PresetsModel {
             selectedID = nil
             resetResults()
         } catch {
-            errorMessage = "File non valido: non è un preset di Encody (\(error.localizedDescription))."
+            errorMessage = String(localized: "File non valido: non è un preset di Encody (\(error.localizedDescription)).")
         }
     }
 

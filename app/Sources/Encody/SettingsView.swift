@@ -18,6 +18,7 @@ struct SettingsView: View {
                     ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                LanguagePicker()
                 Toggle(isOn: $notifyQueueDone) {
                     Text("Notifica a fine coda")
                     Text("Avvisa quando la coda finisce mentre Encody è in secondo piano.")
@@ -42,7 +43,7 @@ struct SettingsView: View {
                     Spacer()
                 }
                 LabeledContent("In uso") {
-                    Text(Engine.binaryURL()?.path ?? "non trovato")
+                    Text(Engine.binaryURL()?.path ?? String(localized: "non trovato"))
                         .font(.caption.monospaced())
                         .foregroundStyle(Engine.binaryURL() == nil ? Color.red : Color.secondary)
                         .textSelection(.enabled)
@@ -79,7 +80,7 @@ struct SettingsView: View {
                     FeatureRow(name: "zscale", ok: c.hasZscale, purpose: "conversione HDR → SDR")
                     FeatureRow(name: "libvmaf", ok: c.hasVmaf, purpose: "VMAF (modello SDR)")
                     FeatureRow(name: "xpsnr", ok: c.hasXpsnr == true, purpose: "XPSNR, anche HDR (FFmpeg 7.1+)")
-                    ToolRow(name: "ColorVideoVDP", path: c.cvvdp ?? "", purpose: "metrica HDR più precisa, facoltativa")
+                    ToolRow(name: "ColorVideoVDP", path: c.cvvdp ?? "", purpose: String(localized: "metrica HDR più precisa, facoltativa"))
                     if (c.cvvdp ?? "").isEmpty || installer.isRunning || installer.message != nil {
                         CVVDPInstallRow(installer: installer) { Task { await model.loadCaps() } }
                     }
@@ -99,7 +100,7 @@ struct SettingsView: View {
         p.canChooseFiles = true
         p.canChooseDirectories = false
         p.allowsMultipleSelection = false
-        p.prompt = "Usa questo motore"
+        p.prompt = String(localized: "Usa questo motore")
         if p.runModal() == .OK, let url = p.url {
             enginePath = url.path
             Task { await model.loadCaps() }
@@ -114,7 +115,7 @@ private struct ToolRow: View {
 
     var body: some View {
         LabeledContent {
-            Text(path.isEmpty ? "non trovato" : path)
+            Text(path.isEmpty ? String(localized: "non trovato") : path)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -174,7 +175,7 @@ final class CVVDPInstaller {
         guard !isRunning else { return }
         isRunning = true
         failed = false
-        message = "Download di ColorVideoVDP e PyTorch (circa 1 GB)…"
+        message = String(localized: "Download di ColorVideoVDP e PyTorch (circa 1 GB)…")
         let venv = Self.venvURL.path
         // python3 di sistema (Xcode) è troppo vecchio: si preferiscono Homebrew e python.org
         var env = Engine.environment
@@ -212,7 +213,7 @@ final class CVVDPInstaller {
             Task { @MainActor in
                 self.isRunning = false
                 self.failed = status != 0
-                self.message = status == 0 ? "ColorVideoVDP installato." : "Installazione non riuscita:\n\(lastLines)"
+                self.message = status == 0 ? String(localized: "ColorVideoVDP installato.") : String(localized: "Installazione non riuscita:\n\(lastLines)")
                 onDone()
             }
         }
@@ -231,10 +232,60 @@ private struct CVVDPInstallRow: View {
                 if installer.isRunning { ProgressView().controlSize(.small) }
                 Spacer()
             }
-            Text(installer.message ?? "Richiede Python 3.10+ (Homebrew o python.org). Viene installato in un ambiente separato in ~/Library/Application Support/Encody/cvvdp: per rimuoverlo basta cancellare la cartella.")
+            Text(installer.message ?? String(localized: "Richiede Python 3.10+ (Homebrew o python.org). Viene installato in un ambiente separato in ~/Library/Application Support/Encody/cvvdp: per rimuoverlo basta cancellare la cartella."))
                 .font(.caption)
                 .foregroundStyle(installer.failed ? Color.red : Color.secondary)
                 .textSelection(.enabled)
+        }
+    }
+}
+
+// MARK: - Lingua
+
+/// Lingua dell'app: di sistema, italiano o inglese. macOS la legge all'avvio (AppleLanguages
+/// nel dominio dell'app), quindi serve un riavvio.
+private struct LanguagePicker: View {
+    @State private var choice = LanguagePicker.current
+    private let initial = LanguagePicker.current
+
+    var body: some View {
+        Picker(selection: $choice) {
+            Text("Sistema").tag("")
+            Text(verbatim: "Italiano").tag("it")
+            Text(verbatim: "English").tag("en")
+        } label: {
+            Text("Lingua")
+            Text("Anche i messaggi del motore seguono questa lingua.")
+        }
+        .onChange(of: choice) { _, v in
+            if v.isEmpty {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.set([v], forKey: "AppleLanguages")
+            }
+        }
+        if choice != initial {
+            HStack {
+                Text("Riavvia Encody per applicare la nuova lingua.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Spacer()
+                Button("Riavvia ora") { Self.relaunch() }
+            }
+        }
+    }
+
+    static var current: String {
+        let domain = UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "") ?? [:]
+        return (domain["AppleLanguages"] as? [String])?.first.map { String($0.prefix(2)) } ?? ""
+    }
+
+    /// Una nuova istanza parte e questa si chiude (con la richiesta di conferma se la coda è in corso)
+    static func relaunch() {
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }
 }

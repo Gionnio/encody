@@ -9,10 +9,10 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .queue: "Coda"
-        case .bench: "Benchmark"
-        case .quality: "Check Qualità"
-        case .presets: "Preset"
+        case .queue: String(localized: "Coda")
+        case .bench: String(localized: "Benchmark")
+        case .quality: String(localized: "Check Qualità")
+        case .presets: String(localized: "sidebar.presets", defaultValue: "Preset") // in inglese al plurale
         }
     }
     var icon: String {
@@ -30,14 +30,14 @@ enum ItemStatus: Equatable {
 
     var label: String {
         switch self {
-        case .probing: "Analisi…"
-        case .ready: "Pronto"
-        case .queued: "In coda"
-        case .running: "In corso"
-        case .done: "Completato"
-        case .failed: "Errore"
-        case .stopped: "Interrotto"
-        case .invalid: "Non leggibile"
+        case .probing: String(localized: "Analisi…")
+        case .ready: String(localized: "Pronto")
+        case .queued: String(localized: "In coda")
+        case .running: String(localized: "In corso")
+        case .done: String(localized: "Completato")
+        case .failed: String(localized: "Errore")
+        case .stopped: String(localized: "Interrotto")
+        case .invalid: String(localized: "Non leggibile")
         }
     }
 }
@@ -287,7 +287,7 @@ final class AppModel {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.directoryURL = outputDir
-        panel.prompt = "Usa questa cartella"
+        panel.prompt = String(localized: "Usa questa cartella")
         if panel.runModal() == .OK, let url = panel.url {
             outputDirPath = url.path
             retargetOutputs()
@@ -522,7 +522,7 @@ final class AppModel {
         do {
             try JSONCoding.encoder.encode(jobs).write(to: url)
         } catch {
-            queueError = "Esportazione fallita: \(error.localizedDescription)"
+            queueError = String(localized: "Esportazione fallita: \(error.localizedDescription)")
         }
     }
 
@@ -538,7 +538,7 @@ final class AppModel {
                 add(urls: [URL(fileURLWithPath: s.inputPath)], presetID: s.preset.id.isEmpty ? nil : s.preset.id, apply: s)
             }
         } catch {
-            queueError = "Coda non valida: \(error.localizedDescription)"
+            queueError = String(localized: "Coda non valida: \(error.localizedDescription)")
         }
     }
 
@@ -558,7 +558,7 @@ final class AppModel {
             }
             try JSONCoding.encoder.encode(jobs).write(to: url)
         } catch {
-            queueError = "Impossibile preparare la coda: \(error.localizedDescription)"
+            queueError = String(localized: "Impossibile preparare la coda: \(error.localizedDescription)")
             return
         }
 
@@ -653,9 +653,9 @@ final class AppModel {
                            elapsed: ev.elapsed ?? 0, test: ev.test ?? false)
         recap = r
         showRecap = true
-        var body = "\(r.ok) completati su \(r.total)"
+        var body = String(localized: "\(r.ok) completati su \(r.total)")
         if r.ok > 0 { body += " · \(Fmt.bytes(r.totalIn)) → \(Fmt.bytes(r.totalOut))" }
-        notify(title: r.fail > 0 ? "Coda terminata con errori" : "Coda completata", body: body)
+        notify(title: r.fail > 0 ? String(localized: "Coda terminata con errori") : String(localized: "Coda completata"), body: body)
     }
 
     private func runFinished(code: Int32, stderr: String) {
@@ -673,7 +673,7 @@ final class AppModel {
         DockProgress.clear()
         if code != 0 && code != 130 && recap == nil && queueError == nil {
             let msg = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            queueError = msg.isEmpty ? "encody terminato con codice \(code)" : msg
+            queueError = msg.isEmpty ? String(localized: "encody terminato con codice \(code)") : msg
         }
         runningItems = []
     }
@@ -826,7 +826,7 @@ final class BenchModel {
                             self.analysisRun = nil
                             if code != 0 && code != 130 && self.analysisError == nil && self.segments.isEmpty {
                                 let msg = err.trimmingCharacters(in: .whitespacesAndNewlines)
-                                self.analysisError = msg.isEmpty ? "Analisi terminata con codice \(code)" : msg
+                                self.analysisError = msg.isEmpty ? String(localized: "Analisi terminata con codice \(code)") : msg
                             }
                         })
         } catch {
@@ -947,7 +947,7 @@ final class BenchModel {
         currentName = ""
         if code != 0 && code != 130 && errorMessage == nil {
             let msg = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            errorMessage = msg.isEmpty ? "Benchmark terminato con codice \(code)" : msg
+            errorMessage = msg.isEmpty ? String(localized: "Benchmark terminato con codice \(code)") : msg
         }
     }
 }
@@ -1021,7 +1021,7 @@ final class QualityModel {
         run = nil
         if code != 0 && code != 130 && errorMessage == nil {
             let msg = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            errorMessage = msg.isEmpty ? "Analisi terminata con codice \(code)" : msg
+            errorMessage = msg.isEmpty ? String(localized: "Analisi terminata con codice \(code)") : msg
         }
     }
 }
