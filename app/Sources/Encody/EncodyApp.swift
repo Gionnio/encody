@@ -45,6 +45,12 @@ struct EncodyApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         signal(SIGPIPE, SIG_IGN) // un motore che esce presto non deve far crashare l'app
+        // Homebrew e i download mettono in quarantena tutto il bundle: il motore incluso, lanciato
+        // come processo a parte, alla prima esecuzione può essere ucciso (SIGKILL). Se l'app è partita
+        // l'utente l'ha già approvata, quindi si toglie la quarantena dal proprio motore.
+        if let engine = Bundle.main.url(forResource: "encody", withExtension: nil) {
+            removexattr(engine.path, "com.apple.quarantine", 0)
+        }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         if Bundle.main.bundleIdentifier != nil {

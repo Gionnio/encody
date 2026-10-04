@@ -52,7 +52,7 @@ import (
 // ==========================================
 
 const (
-	AppName      = "ENCODY v1.0"
+	AppName      = "ENCODY v1.0.1"
 	TestDuration = "300"
 	TestSeconds  = 300.0
 	BenchSeconds = 45.0
