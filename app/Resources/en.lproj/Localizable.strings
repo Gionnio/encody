@@ -308,7 +308,9 @@
 "★ = italiano forced. I sottotitoli vengono copiati; i mov_text degli MP4 diventano SRT perché l'MKV non li supporta." = "★ = Italian forced. Subtitles are copied; MP4 mov_text becomes SRT because MKV does not support it.";
 "Lingua" = "Language";
 "Anche i messaggi del motore seguono questa lingua." = "Engine messages follow this language too.";
-"Riavvia Encody per applicare la nuova lingua." = "Restart Encody to apply the new language.";
-"Riavvia ora" = "Restart Now";
 "Regolazione" = "Rate control";
 "sidebar.presets" = "Presets";
+"Encody si riavvia per cambiare lingua." = "Encody restarts to change language.";
+"Riavviare Encody per cambiare lingua?" = "Relaunch Encody to change the language?";
+"Riavvia ora" = "Relaunch Now";
+"Più tardi" = "Later";
