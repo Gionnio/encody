@@ -1,0 +1,470 @@
+<title>Ritocco grafico Encody</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: pagina di revisione stretta (testo) con finestre macOS a larghezza piena, ciascuna con i propri richiami numerati */
+:root {
+  --page: #f3f1f7;
+  --ink: #1d1a24;
+  --muted: #6b6578;
+  --rule: #ddd8e6;
+  --violet: #6d3fe0;          /* accento Encody (più scuro in chiaro per il contrasto) */
+  --violet-soft: rgba(109, 63, 224, .10);
+  --win: #ffffff;
+  --win-side: #ecebf0;
+  --win-bar: #f6f5f8;
+  --win-line: #e2e0e7;
+  --win-field: #f0eef4;
+  --win-text: #1f1d24;
+  --win-sub: #7a7585;
+  --ok: #1f9d55;
+  --warn: #d97a06;
+  --bad: #d64545;
+  --dv: #8b3fd9;
+  --hdr: #b88600;
+  --callout: #ffcf33;
+  --callout-ink: #2a2100;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #141218; --ink: #ece8f3; --muted: #a39cb2; --rule: #2e2a37;
+    --violet: #a586ff; --violet-soft: rgba(165, 134, 255, .14);
+    --win: #1e1c22; --win-side: #26242b; --win-bar: #2a2830; --win-line: #36333d; --win-field: #2f2c35;
+    --win-text: #ecebef; --win-sub: #9b96a6;
+    --ok: #3ccf7e; --warn: #f2a33a; --bad: #ff6b6b; --dv: #b98cff; --hdr: #e4b93a;
+    --callout: #ffd84d; --callout-ink: #2a2100;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #141218; --ink: #ece8f3; --muted: #a39cb2; --rule: #2e2a37;
+  --violet: #a586ff; --violet-soft: rgba(165, 134, 255, .14);
+  --win: #1e1c22; --win-side: #26242b; --win-bar: #2a2830; --win-line: #36333d; --win-field: #2f2c35;
+  --win-text: #ecebef; --win-sub: #9b96a6;
+  --ok: #3ccf7e; --warn: #f2a33a; --bad: #ff6b6b; --dv: #b98cff; --hdr: #e4b93a;
+  --callout: #ffd84d; --callout-ink: #2a2100;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--font-ui); line-height: 1.5; }
+.page { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; max-width: 1180px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 66ch; }
+h1, h2 { font-family: var(--font-doc); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 2.1rem; line-height: 1.15; }
+h2 { font-size: 1.45rem; }
+.kicker { font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--violet); font-weight: 600; margin: 0 0 8px; }
+.lede { font-family: var(--font-doc); font-size: 1.08rem; color: var(--ink); margin: 14px 0 0; }
+.muted { color: var(--muted); }
+header.top { display: flex; flex-wrap: wrap; gap: 24px; align-items: end; justify-content: space-between; }
+.theme { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; padding: 3px; gap: 2px; }
+.theme button { font: inherit; font-size: .82rem; border: 0; background: transparent; color: var(--muted); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.theme button[aria-pressed="true"] { background: var(--violet-soft); color: var(--violet); font-weight: 600; }
+.theme button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+section.shot { display: grid; gap: 18px; }
+.scroll { overflow-x: auto; padding: 6px 4px 14px; }
+.note { font-size: .8rem; color: var(--muted); }
+
+/* ---------- finestra macOS ---------- */
+.win { min-width: 1040px; background: var(--win); color: var(--win-text); border-radius: 12px; border: 1px solid var(--win-line); box-shadow: 0 18px 50px rgba(20, 10, 40, .18), 0 2px 6px rgba(20, 10, 40, .08); overflow: hidden; font-size: 13px; display: grid; grid-template-columns: 196px 1fr; }
+.side { background: var(--win-side); border-right: 1px solid var(--win-line); display: flex; flex-direction: column; padding: 12px 10px; gap: 2px; }
+.lights { display: flex; gap: 8px; padding: 2px 4px 16px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.nav { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 7px; color: var(--win-text); }
+.nav svg { width: 16px; height: 16px; color: var(--violet); flex: none; }
+.nav.on { background: var(--violet); color: #fff; }
+.nav.on svg { color: #fff; }
+.nav .count { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.25); padding: 0 7px; border-radius: 999px; }
+.side .spacer { flex: 1; }
+.engine { position: relative; display: grid; gap: 2px; padding: 9px 10px; border-radius: 9px; background: var(--win); border: 1px solid var(--win-line); font-size: 11px; }
+.engine b { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.engine b::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.engine span { color: var(--win-sub); }
+
+.main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
+.tb { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--win-bar); border-bottom: 1px solid var(--win-line); }
+.tb h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.tb .tools { margin-left: auto; display: flex; gap: 16px; color: var(--win-sub); align-items: center; }
+.tb .tools svg { width: 17px; height: 17px; }
+.tb .tools .run { color: var(--violet); }
+
+.split { display: grid; grid-template-columns: 400px 1fr; min-height: 470px; }
+.list { border-right: 1px solid var(--win-line); padding: 8px; display: grid; align-content: start; gap: 4px; }
+.listhead { display: flex; justify-content: space-between; color: var(--win-sub); font-size: 11.5px; padding: 2px 6px 6px; }
+.listhead span:last-child { color: var(--violet); }
+.row { position: relative; display: grid; grid-template-columns: 16px 1fr; gap: 9px; padding: 9px 10px; border-radius: 9px; }
+.row.sel { background: var(--violet-soft); box-shadow: inset 0 0 0 1.5px var(--violet); }
+.row .check { width: 14px; height: 14px; border-radius: 4px; background: var(--violet); margin-top: 2px; position: relative; }
+.row .check::after { content: ""; position: absolute; left: 4.5px; top: 1.5px; width: 3px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.row .body { display: grid; gap: 4px; min-width: 0; }
+.line1 { display: flex; align-items: center; gap: 6px; }
+.line1 .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line1 .badges { margin-left: auto; display: flex; gap: 4px; flex: none; }
+.sub { color: var(--win-sub); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; letter-spacing: .02em; }
+.b-dv { color: var(--dv); background: color-mix(in srgb, var(--dv) 16%, transparent); }
+.b-hdr { color: var(--hdr); background: color-mix(in srgb, var(--hdr) 18%, transparent); }
+.b-grain { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.b-sdr { color: var(--win-sub); background: var(--win-field); }
+.status { width: 14px; height: 14px; border-radius: 50%; flex: none; display: grid; place-items: center; }
+.st-run { border: 2px solid var(--violet); border-right-color: transparent; }
+.st-wait { border: 1.5px solid var(--win-sub); }
+.st-done { background: var(--ok); }
+.st-done::after { content: ""; width: 3px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: translateY(-1px) rotate(45deg); }
+.prog { height: 5px; border-radius: 999px; background: var(--win-field); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--violet); border-radius: 999px; }
+.progtext { display: flex; justify-content: space-between; font-size: 11px; color: var(--win-sub); font-variant-numeric: tabular-nums; }
+.saved { justify-self: start; font-size: 11px; font-weight: 600; color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); padding: 1px 8px; border-radius: 999px; }
+
+.editor { padding: 14px 18px; display: grid; align-content: start; gap: 14px; min-width: 0; }
+.card { background: var(--win-bar); border: 1px solid var(--win-line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+.filehead .fname { font-size: 15px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--win-field); color: var(--win-sub); font-variant-numeric: tabular-nums; }
+.hint { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 9px; padding: 7px 10px; }
+.hint .btn { margin-left: auto; }
+.sec { font-size: 13px; font-weight: 700; margin: 2px 2px -6px; }
+.fieldrow { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; }
+.fieldrow + .fieldrow { border-top: 1px solid var(--win-line); padding-top: 10px; }
+.popup { justify-self: end; display: inline-flex; align-items: center; gap: 8px; background: var(--win); border: 1px solid var(--win-line); border-radius: 7px; padding: 4px 10px; }
+.popup::after { content: "⌃⌄"; font-size: 9px; letter-spacing: -2px; color: var(--win-sub); writing-mode: horizontal-tb; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { border: 1px solid var(--win-line); border-radius: 10px; padding: 8px 10px; background: var(--win); display: grid; gap: 2px; }
+.tile b { font-size: 12.5px; }
+.tile span { font-size: 11px; color: var(--win-sub); line-height: 1.35; }
+.tile.on { border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); background: var(--violet-soft); }
+.crop { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.switch { width: 30px; height: 18px; border-radius: 999px; background: var(--win-field); border: 1px solid var(--win-line); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--win-sub); }
+.switch.on { background: var(--violet); border-color: var(--violet); }
+.switch.on::after { left: 14px; background: #fff; }
+.mono { font-family: var(--font-mono); font-size: 11.5px; }
+.dim { color: var(--win-sub); font-size: 11.5px; }
+.seg { justify-self: end; display: inline-grid; grid-auto-flow: column; background: var(--win-field); border-radius: 8px; padding: 2px; }
+.seg span { padding: 3px 12px; border-radius: 6px; font-size: 12px; }
+.seg span.on { background: var(--win); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+.track { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; }
+.lang { font-size: 10px; font-weight: 700; text-align: center; background: var(--win-field); border-radius: 5px; padding: 1px 0; }
+.track small { display: block; color: var(--win-sub); font-size: 11px; }
+.track .to { color: var(--violet); }
+.btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 11px; border-radius: 7px; background: var(--win); border: 1px solid var(--win-line); color: var(--win-text); }
+.btn.primary { background: var(--violet); border-color: var(--violet); color: #fff; font-weight: 600; }
+
+.bottom { display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: var(--win-bar); border-top: 1px solid var(--win-line); }
+.group { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--win-line); border-radius: 10px; background: var(--win); }
+.group > em { font-style: normal; color: var(--win-sub); font-size: 11.5px; margin-right: 2px; }
+.group .popup { border: 0; background: var(--win-field); padding: 3px 9px; }
+.summary { margin-left: auto; text-align: right; font-size: 11.5px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.summary b { color: var(--ok); }
+
+/* richiami numerati */
+.pin { position: absolute; z-index: 2; width: 22px; height: 22px; border-radius: 50%; background: var(--callout); color: var(--callout-ink); font: 700 11.5px/22px var(--font-ui); text-align: center; box-shadow: 0 0 0 3px var(--win), 0 2px 6px rgba(0,0,0,.25); }
+.rel { position: relative; }
+
+/* coda vuota */
+.empty { display: grid; place-items: center; padding: 26px; min-height: 420px; }
+.drop { width: 100%; height: 100%; min-height: 370px; border: 3px dashed var(--violet); border-radius: 12px; background: var(--violet-soft); display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 24px; }
+.drop svg { width: 46px; height: 46px; color: var(--violet); }
+.drop .big { font-size: 18px; font-weight: 600; }
+.drop .fmt { color: var(--win-sub); font-size: 12px; }
+
+/* benchmark */
+.bench { padding: 14px 18px; display: grid; gap: 14px; }
+.segs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.seg-card { display: grid; gap: 6px; }
+.thumb { aspect-ratio: 16 / 9; max-width: 100%; border-radius: 9px; position: relative; overflow: hidden; }
+.thumb.t1 { background: linear-gradient(160deg, #6b8fbf 0%, #c9b28a 55%, #4a3a2a 100%); }
+.thumb.t2 { background: linear-gradient(160deg, #2a1d24 0%, #8a3b2a 45%, #e0a356 100%); }
+.thumb.t3 { background: linear-gradient(160deg, #1f2b33 0%, #44606b 50%, #b9c7c9 100%); }
+.thumb span { position: absolute; left: 8px; bottom: 6px; color: #fff; font-size: 11px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
+.seg-card .dim { display: flex; justify-content: space-between; }
+.results { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; align-items: start; }
+.res { display: grid; gap: 8px; }
+.rcard { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; padding: 10px 12px; border-radius: 11px; border: 1px solid var(--win-line); background: var(--win); }
+.rcard.best { border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
+.rcard .t { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.rcard .score { font-size: 17px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.rcard .meta { color: var(--win-sub); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.bar { grid-column: 1 / -1; height: 6px; border-radius: 999px; background: var(--win-field); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 999px; }
+.tag { font-size: 10px; font-weight: 700; color: var(--violet); background: var(--violet-soft); padding: 1px 7px; border-radius: 999px; }
+.chart { background: var(--win-bar); border: 1px solid var(--win-line); border-radius: 12px; padding: 10px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--win-sub); font: 10.5px var(--font-ui); }
+.chart .lbl { fill: var(--win-text); font-weight: 600; }
+
+/* elenco delle modifiche */
+.changes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; }
+.change { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; }
+.change .n { width: 24px; height: 24px; border-radius: 50%; background: var(--callout); color: var(--callout-ink); font-weight: 700; font-size: 12px; display: grid; place-items: center; }
+.change h4 { margin: 0 0 2px; font-size: .95rem; }
+.change p { margin: 0; font-size: .88rem; color: var(--muted); }
+.change p b { color: var(--ink); font-weight: 600; }
+.foot { border-top: 1px solid var(--rule); padding-top: 18px; font-size: .85rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .prog i { transition: width .6s ease; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="prose">
+      <p class="kicker">Encody 1.0.2 · proposta</p>
+      <h1>Ritocco grafico di Encody</h1>
+      <p class="lede">Dieci ritocchi, nessuna funzione nuova: stesse schermate, più ordine. I numeri gialli nelle finestre corrispondono all'elenco sotto ciascuna. Nomi dei file e misure sono di esempio.</p>
+    </div>
+    <div class="theme" role="group" aria-label="Tema dei mockup">
+      <button type="button" id="t-sys" aria-pressed="true">Sistema</button>
+      <button type="button" id="t-light" aria-pressed="false">Chiaro</button>
+      <button type="button" id="t-dark" aria-pressed="false">Scuro</button>
+    </div>
+  </header>
+
+  <!-- ===================== CODA ===================== -->
+  <section class="shot">
+    <div class="prose">
+      <h2>Coda, con un file in codifica</h2>
+      <p class="muted">La schermata dove Encody passa più tempo. Oggi è funzionale ma disomogenea: titoli di sezione di peso diverso, crop che va a capo, barra in basso piena di menu.</p>
+    </div>
+    <div class="scroll">
+      <div class="win">
+        <aside class="side rel">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="nav on rel"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M5 6h6M5 8.5h6M5 11h4"/></svg>Coda<span class="count">3</span>
+            <span class="pin" style="left:-8px;top:-10px">1</span></div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 8l3-2.5"/></svg>Benchmark</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l1.6 1.4 2.1-.2.5 2 1.8 1.1-.8 1.9.8 1.9-1.8 1.1-.5 2-2.1-.2L8 14.2l-1.6-1.4-2.1.2-.5-2L2 9.9l.8-1.9L2 6.1l1.8-1.1.5-2 2.1.2z"/><path d="M5.6 8l1.6 1.6 3.2-3.2"/></svg>Check Qualità</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5h12M2 8h12M2 11.5h12"/><circle cx="5.5" cy="4.5" r="1.4" fill="currentColor"/><circle cx="10.5" cy="8" r="1.4" fill="currentColor"/><circle cx="7" cy="11.5" r="1.4" fill="currentColor"/></svg>Preset</div>
+          <div class="spacer"></div>
+          <div class="engine"><b>Motore 1.0.2</b><span>FFmpeg 9.0.2 · zscale · libvmaf</span><span>DV e HDR10+ pronti</span>
+            <span class="pin" style="right:-8px;top:-10px">8</span></div>
+        </aside>
+        <div class="main">
+          <div class="tb"><h3>Coda</h3>
+            <div class="tools">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><circle cx="5.3" cy="8" r=".6" fill="currentColor"/><circle cx="8" cy="8" r=".6" fill="currentColor"/><circle cx="10.7" cy="8" r=".6" fill="currentColor"/></svg>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4M6.8 2v4.5L3.5 13a.8.8 0 0 0 .7 1.1h7.6a.8.8 0 0 0 .7-1.1L9.2 6.5V2"/></svg>
+              <svg class="run" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor"/></svg>
+            </div>
+          </div>
+          <div class="split">
+            <div class="list">
+              <div class="listhead"><span>2 di 2 da fare attivi</span><span>Tutti · Nessuno · Inverti</span></div>
+              <div class="row rel">
+                <div class="check"></div>
+                <div class="body">
+                  <div class="line1"><span class="status st-run"></span><span class="name">Documentario_Nord_2160p.mkv</span><span class="badges"><span class="badge b-hdr">HDR10</span></span></div>
+                  <div class="prog"><i style="width:41%"></i></div>
+                  <div class="progtext"><span>Codifica · 41% · 52 fps</span><span>mancano ~18 min</span></div>
+                </div>
+                <span class="pin" style="left:-10px;top:30px">2</span>
+              </div>
+              <div class="row sel rel">
+                <div class="check"></div>
+                <div class="body">
+                  <div class="line1"><span class="status st-wait"></span><span class="name">Restauro_1980_UHD.mkv</span><span class="badges"><span class="badge b-dv">DV P7</span><span class="badge b-grain">Grana alta</span></span></div>
+                  <div class="sub">4K x265 Grana (Slow · CRF 17) · DV 8.1 mantenuto</div>
+                </div>
+                <span class="pin" style="right:-8px;top:-9px">3</span>
+              </div>
+              <div class="row">
+                <div class="check"></div>
+                <div class="body">
+                  <div class="line1"><span class="status st-done"></span><span class="name">Serie_Episodio_01_2160p.mkv</span><span class="badges"><span class="badge b-dv">DV P8</span></span></div>
+                  <div class="sub">4K VideoToolbox (CQ 65) · DV mantenuto</div>
+                  <span class="saved">−62% · 3,1 GB risparmiati</span>
+                </div>
+              </div>
+            </div>
+            <div class="editor">
+              <div class="card filehead">
+                <div class="fname">Restauro_1980_UHD.mkv</div>
+                <div class="chips"><span class="badge b-dv">DV P7</span><span class="chip">49,0 GB</span><span class="chip">2 h 07 m</span><span class="chip">3840×2160</span><span class="chip">23,976 fps</span><span class="badge b-grain">Grana alta</span></div>
+                <div class="hint">Grana alta: questo preset la conserva al 75–87%.<span class="btn">Cambia preset…</span></div>
+              </div>
+              <div class="sec rel">Video<span class="pin" style="left:-30px;top:-3px">6</span></div>
+              <div class="card">
+                <div class="fieldrow"><span>Preset</span><span class="popup">4K x265 Grana (Slow · CRF 17)</span></div>
+                <div class="fieldrow rel"><span>Gamma dinamica</span>
+                  <div class="tiles">
+                    <div class="tile on"><b>Dolby Vision 8.1</b><span>Base HDR10 + metadati reinseriti. Profilo 7 → 8.1.</span></div>
+                    <div class="tile"><b>HDR10</b><span>Solo base layer, tonemap fisso. Più veloce.</span></div>
+                    <div class="tile"><b>SDR</b><span>Per schermi non HDR. Più lento.</span></div>
+                  </div>
+                  <span class="pin" style="right:-8px;top:-10px">4</span>
+                </div>
+                <div class="fieldrow rel"><span>Crop</span>
+                  <div class="crop"><span class="dim">non disponibile con Dolby Vision</span><span class="mono dim">3840×1606 · bande 277 px</span><span class="switch"></span></div>
+                  <span class="pin" style="right:-8px;top:-2px">5</span>
+                </div>
+              </div>
+              <div class="sec">Audio</div>
+              <div class="card">
+                <div class="fieldrow"><span>Modalità</span><span class="seg"><span class="on">Pass</span><span>E-AC3 Smart</span><span>Stereo AAC</span></span></div>
+                <div class="fieldrow"><span>Tracce</span>
+                  <div style="display:grid;gap:8px">
+                    <div class="track"><span class="lang">ITA</span><span>TrueHD Atmos 7.1 ★<small><span class="to">→ copia</span> · 4,9 Mb/s · default</small></span><span class="switch on"></span></div>
+                    <div class="track"><span class="lang">ENG</span><span>DTS-HD MA 5.1<small>→ copia · 3,8 Mb/s</small></span><span class="switch"></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bottom rel">
+            <div class="group"><em>Nuovi file</em><span class="popup">4K VideoToolbox</span><span class="popup">Audio: Pass</span><span class="popup">DV: Mantieni</span><span class="popup">Movies</span></div>
+            <div class="summary">3 file · 1 in corso · 1 completato<br><b>−62% finora</b> · fine stimata 21:40</div>
+            <span class="pin" style="left:6px;top:-11px">7</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="changes">
+      <div class="change"><span class="n">1</span><div><h4>Accento viola di Encody</h4><p>Selezioni, barre e pulsanti principali nel viola dell'icona e del sito, invece del blu di sistema. Oggi: <b>tutto blu</b>, l'app non si riconosce.</p></div></div>
+      <div class="change"><span class="n">2</span><div><h4>Riga in codifica più leggibile</h4><p>Barra sottile e <b>tempo rimanente</b> a destra; percentuale e fps in testo piccolo. Oggi: barra lunga e solo fps.</p></div></div>
+      <div class="change"><span class="n">3</span><div><h4>Badge in ordine fisso</h4><p>Sempre a destra del nome: formato HDR, poi grana. Riga selezionata con contorno viola invece del riempimento pieno.</p></div></div>
+      <div class="change"><span class="n">4</span><div><h4>Gamma dinamica a schede</h4><p>Tre scelte affiancate con una riga di spiegazione ciascuna, al posto del menu più tre paragrafi lunghi sotto.</p></div></div>
+      <div class="change"><span class="n">5</span><div><h4>Crop su una riga</h4><p>Misura del crop leggibile (3840×1606, bande 277 px) e motivo se non disponibile. Oggi: <b>"crop=w:h:x:y"</b> che va a capo.</p></div></div>
+      <div class="change"><span class="n">6</span><div><h4>Titoli di sezione uguali</h4><p>Video, Audio, Sottotitoli, Uscita con lo stesso peso. Oggi: <b>Video grande, Audio piccolo</b> con i link accanto.</p></div></div>
+      <div class="change"><span class="n">7</span><div><h4>Barra in basso raggruppata</h4><p>Le impostazioni dei nuovi file in un unico gruppo etichettato; a destra riepilogo, risparmio e <b>orario di fine</b> stimato.</p></div></div>
+      <div class="change"><span class="n">8</span><div><h4>Stato del motore leggibile</h4><p>Versione del motore, FFmpeg e strumenti in un riquadro con punto verde, arancione o rosso. Oggi: "ENCODY v1.0" in grigio.</p></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== CODA VUOTA ===================== -->
+  <section class="shot">
+    <div class="prose">
+      <h2>Coda vuota</h2>
+      <p class="muted">Primo avvio e coda svuotata. Oggi la finestra resta divisa in due, con a destra "Nessun file selezionato".</p>
+    </div>
+    <div class="scroll">
+      <div class="win">
+        <aside class="side">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="nav on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M5 6h6M5 8.5h6M5 11h4"/></svg>Coda</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 8l3-2.5"/></svg>Benchmark</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.6 8l1.6 1.6 3.2-3.2"/></svg>Check Qualità</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5h12M2 8h12M2 11.5h12"/></svg>Preset</div>
+          <div class="spacer"></div>
+          <div class="engine"><b>Motore 1.0.2</b><span>FFmpeg 9.0.2 · zscale · libvmaf</span></div>
+        </aside>
+        <div class="main">
+          <div class="tb"><h3>Coda</h3><div class="tools"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg></div></div>
+          <div class="empty rel">
+            <div class="drop">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="7" y="11" width="34" height="26" rx="5"/><path d="M7 17h34M7 31h34"/><path d="M24 20v9M20 25l4 4 4-4"/></svg>
+              <div class="big">Trascina qui film, serie o cartelle</div>
+              <div class="fmt">mkv · mp4 · mov · m2ts · ts · avi · m4v</div>
+              <span class="btn primary">Aggiungi file…</span>
+              <div class="dim">Verranno codificati con 4K VideoToolbox · Audio Pass · DV mantenuto (si cambia in basso)</div>
+            </div>
+            <span class="pin" style="left:20px;top:16px">9</span>
+          </div>
+          <div class="bottom"><div class="group"><em>Nuovi file</em><span class="popup">4K VideoToolbox</span><span class="popup">Audio: Pass</span><span class="popup">DV: Mantieni</span><span class="popup">Movies</span></div><div class="summary">Coda vuota</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="changes">
+      <div class="change"><span class="n">9</span><div><h4>Area di trascinamento a tutta larghezza</h4><p>Bordo tratteggiato viola, angoli 12 e sfondo tenue come nelle altre app; ricorda con quali impostazioni verranno codificati i file.</p></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== BENCHMARK ===================== -->
+  <section class="shot">
+    <div class="prose">
+      <h2>Benchmark, risultati</h2>
+      <p class="muted">Oggi i risultati sono una lista con il numero colorato e un grafico separato. La proposta li rende confrontabili a colpo d'occhio e indica il preset consigliato.</p>
+    </div>
+    <div class="scroll">
+      <div class="win">
+        <aside class="side">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M5 6h6M5 8.5h6M5 11h4"/></svg>Coda</div>
+          <div class="nav on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 8l3-2.5"/></svg>Benchmark</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.6 8l1.6 1.6 3.2-3.2"/></svg>Check Qualità</div>
+          <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5h12M2 8h12M2 11.5h12"/></svg>Preset</div>
+          <div class="spacer"></div>
+          <div class="engine"><b>Motore 1.0.2</b><span>XPSNR · ColorVideoVDP</span></div>
+        </aside>
+        <div class="main">
+          <div class="tb"><h3>Benchmark</h3><div class="tools"><span class="btn primary">Avvia benchmark</span></div></div>
+          <div class="bench">
+            <div class="card">
+              <div class="fieldrow"><span>Sorgente</span><span style="justify-self:end" class="chips"><b style="font-size:12.5px">Serie_Episodio_01_2160p.mkv</b><span class="badge b-hdr">HDR10</span><span class="chip">50 m</span><span class="chip">metrica XPSNR</span></span></div>
+              <div class="segs">
+                <div class="seg-card"><div class="thumb t1"><span>3:27</span></div><div class="dim"><span>Inizio</span><span>lum. 24% · 24,6 Mb/s</span></div></div>
+                <div class="seg-card"><div class="thumb t2"><span>30:27</span></div><div class="dim"><span>Centro</span><span>lum. 10% · 24,6 Mb/s</span></div></div>
+                <div class="seg-card"><div class="thumb t3"><span>39:15</span></div><div class="dim"><span>Fine</span><span>lum. 9% · 24,6 Mb/s</span></div></div>
+              </div>
+            </div>
+            <div class="results rel">
+              <div class="res">
+                <div class="rcard best">
+                  <div class="t">4K x265 (Medium · CRF 18) <span class="tag">Consigliato</span></div><div class="score">42,6 dB</div>
+                  <div class="meta">0,66 GB stimati · 9,7 fps · −84% rispetto alla sorgente</div><div class="meta" style="text-align:right">ottimo</div>
+                  <div class="bar"><i style="width:76%;background:var(--ok)"></i></div>
+                </div>
+                <div class="rcard">
+                  <div class="t">4K x265 Grana veloce (CRF 17)</div><div class="score">43,9 dB</div>
+                  <div class="meta">1,12 GB stimati · 7,8 fps · −73%</div><div class="meta" style="text-align:right">ottimo</div>
+                  <div class="bar"><i style="width:84%;background:var(--ok)"></i></div>
+                </div>
+                <div class="rcard">
+                  <div class="t">4K VideoToolbox (CQ 65)</div><div class="score">43,6 dB</div>
+                  <div class="meta">1,46 GB stimati · 51 fps · −65%</div><div class="meta" style="text-align:right">ottimo</div>
+                  <div class="bar"><i style="width:82%;background:var(--ok)"></i></div>
+                </div>
+              </div>
+              <div class="chart">
+                <svg viewBox="0 0 360 230" role="img" aria-label="Qualità XPSNR rispetto alla dimensione stimata">
+                  <!-- scala: x 0,4–1,6 GB → 46..340 ; y 42–44,5 dB → 190..20 -->
+                  <g stroke="var(--win-line)" stroke-width="1">
+                    <line x1="46" y1="190" x2="340" y2="190"/><line x1="46" y1="20" x2="46" y2="190"/>
+                    <line x1="46" y1="122" x2="340" y2="122" stroke-dasharray="3 4"/><line x1="46" y1="54" x2="340" y2="54" stroke-dasharray="3 4"/>
+                  </g>
+                  <text x="46" y="206" text-anchor="middle">0,4</text><text x="193" y="206" text-anchor="middle">1,0</text><text x="340" y="206" text-anchor="middle">1,6 GB</text>
+                  <text x="40" y="193" text-anchor="end">42</text><text x="40" y="125" text-anchor="end">43</text><text x="40" y="57" text-anchor="end">44</text>
+                  <text x="46" y="12">XPSNR dB</text>
+                  <!-- x265 CRF18: 0,66 GB, 42,6 dB → x=46+(0,26/1,2)*294=109.7 ; y=190-(0,6/2,5)*170=149.2 -->
+                  <circle cx="110" cy="149" r="6" fill="var(--violet)"/>
+                  <text class="lbl" x="120" y="164">x265 CRF 18</text>
+                  <!-- Grana veloce: 1,12 GB, 43,9 dB → x=222.4 ; y=60.8 -->
+                  <circle cx="222" cy="61" r="5" fill="var(--win-sub)"/>
+                  <text class="lbl" x="232" y="58">Grana veloce</text>
+                  <!-- VideoToolbox: 1,46 GB, 43,6 dB → x=305.7 ; y=81.2 -->
+                  <circle cx="306" cy="81" r="5" fill="var(--win-sub)"/>
+                  <text class="lbl" x="300" y="100" text-anchor="end">VideoToolbox</text>
+                </svg>
+              </div>
+              <span class="pin" style="left:-10px;top:-11px">10</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="changes">
+      <div class="change"><span class="n">10</span><div><h4>Risultati a schede con il consigliato</h4><p>Ogni preset con punteggio, barra della qualità, dimensione e <b>risparmio rispetto alla sorgente</b>; "Consigliato" sul miglior rapporto qualità/dimensione sopra la soglia "ottimo". Il grafico affianca le schede e usa gli stessi colori.</p></div></div>
+    </div>
+  </section>
+
+  <p class="foot">Le misure sono di esempio, coerenti con i benchmark fatti su una serie 4K HDR10. Font e controlli nei mockup imitano quelli di sistema: nell'app restano i componenti SwiftUI nativi, cambiano colore d'accento, disposizione e testi.</p>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var ids = { "t-sys": null, "t-light": "light", "t-dark": "dark" };
+  function apply(id) {
+    var v = ids[id];
+    if (v) root.setAttribute("data-theme", v); else root.removeAttribute("data-theme");
+    Object.keys(ids).forEach(function (k) { document.getElementById(k).setAttribute("aria-pressed", k === id ? "true" : "false"); });
+    try { localStorage.setItem("encody-mock-theme", id); } catch (e) {}
+  }
+  Object.keys(ids).forEach(function (k) { document.getElementById(k).addEventListener("click", function () { apply(k); }); });
+  try { var saved = localStorage.getItem("encody-mock-theme"); if (saved && ids.hasOwnProperty(saved)) apply(saved); } catch (e) {}
+})();
+</script>
