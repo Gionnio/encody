@@ -51,8 +51,14 @@ import (
 // 1. CONFIG & TYPES
 // ==========================================
 
+// Version arriva da build_app.sh (-ldflags -X main.Version=…), la stessa dell'app:
+// così l'etichetta del motore non resta indietro. "dev" per le build a mano.
+var (
+	Version = "dev"
+	AppName = "ENCODY v" + Version
+)
+
 const (
-	AppName      = "ENCODY v1.0.1"
 	TestDuration = "300"
 	TestSeconds  = 300.0
 	BenchSeconds = 45.0

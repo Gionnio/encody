@@ -14,7 +14,7 @@ BUILD_NUMBER="3"
 
 echo "▸ Motore Go"
 mkdir -p "$BUILD"
-(cd engine && go build -trimpath -ldflags="-s -w" -o "$BUILD/encody" .)
+(cd engine && go build -trimpath -ldflags="-s -w -X main.Version=$VERSION" -o "$BUILD/encody" .)
 
 echo "▸ App SwiftUI"
 (cd app && swift build -c release)
