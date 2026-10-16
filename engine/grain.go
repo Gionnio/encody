@@ -5,8 +5,8 @@
 // standard nei blocchi 16×16. Il 10° percentile dei blocchi è quella dei blocchi più piatti
 // (cielo, pareti): lì il dettaglio vero non c'è e resta solo la grana. Si considerano solo i
 // mezzitoni, così bande nere, ombre profonde e luci bruciate non falsano la misura.
-// Indice = mediana sui frame, in codici a 10 bit. Tarato su L'Impero colpisce ancora (BDRemux, 2,8)
-// e Loki (WEB-DL x265, 0,4–0,7). Sotto i 720p non si misura.
+// Indice = mediana sui frame, in codici a 10 bit. Tarato su L'Impero colpisce ancora (Blu-ray UHD 4K, 2,8)
+// e su una serie recente in HEVC 4K già compressa (0,4–0,7). Sotto i 720p non si misura.
 package main
 
 import (

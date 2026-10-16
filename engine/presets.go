@@ -113,7 +113,7 @@ type PresetSpec struct {
 
 var fullPass = []string{"aac", "ac3", "eac3", "truehd", "dts", "opus", "flac"}
 
-// Grana (tarati su L'Impero colpisce ancora, BDRemux 4K): niente SAO e deblock leggero per non
+// Grana (tarati su L'Impero colpisce ancora, Blu-ray UHD 4K): niente SAO e deblock leggero per non
 // cancellarla, psy-rd/psy-rdoq alti per conservarne l'energia, aq-mode 3 per le ombre,
 // ipratio/pbratio bassi contro il pulsare tra I e B. Grana conservata: slow 75–87%, medium 58–81%,
 // contro 26–52% del preset 3. tune=grain non serve: il file supera la sorgente.

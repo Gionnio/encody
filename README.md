@@ -75,6 +75,8 @@ Encody is not signed with a paid Apple Developer ID, so macOS may block the firs
 2. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the Encody message.
 3. Confirm with **Open**. From then on it opens normally.
 
+*Right-click → Open no longer works on macOS 15 (Sequoia) and later.*
+
 ## 🛠 Build from Source
 
 ```bash
@@ -90,7 +92,7 @@ The icon source is `icon/AppIcon.svg`; the PNGs in `icon/AppIcon.iconset` are tu
 
 Normal presets smooth grain away (the x265 CRF 18 preset kept only 26–52% of the grain of *The Empire Strikes Back*). The grain presets disable SAO, lower deblocking, raise `psy-rd`/`psy-rdoq` and use `aq-mode 3`:
 
-| Preset | Grain kept | Size vs. BDRemux | Speed |
+| Preset | Grain kept | Size vs. 4K UHD Blu-ray source | Speed |
 |---|---|---|---|
 | x265 Medium CRF 18 (preset 3) | 26–52% | 10–14% | 1× |
 | x265 Grain Slow CRF 17 (preset 5) | 75–87% | 41–44% | ~0.4× |
