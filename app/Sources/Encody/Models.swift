@@ -418,6 +418,14 @@ enum Fmt {
         ByteCountFormatter.string(fromByteCount: b, countStyle: .file)
     }
 
+    /// "mancano ~18 min", "mancano ~1 h 05 min", "meno di un minuto"
+    static func remaining(_ seconds: Double) -> String {
+        let m = Int((seconds / 60).rounded())
+        if m < 1 { return String(localized: "meno di un minuto") }
+        if m < 60 { return String(localized: "mancano ~\(m) min") }
+        return String(localized: "mancano ~\(m / 60) h \(String(format: "%02d", m % 60)) min")
+    }
+
     static func duration(_ seconds: Double) -> String {
         let t = Int(seconds.rounded())
         let h = t / 3600, m = (t % 3600) / 60, s = t % 60

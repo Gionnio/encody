@@ -13,6 +13,9 @@ struct QueueView: View {
         // HSplitView è AppKit e non rispetta safeAreaInset: la barra va in un VStack,
         // altrimenti il Form di destra scorre sotto la barra e gli ultimi controlli restano coperti
         VStack(spacing: 0) {
+            if model.items.isEmpty {
+                EmptyQueueView()
+            } else {
             HSplitView {
                 QueueListView()
                     .frame(minWidth: 320, idealWidth: 380, maxHeight: .infinity)
@@ -27,6 +30,7 @@ struct QueueView: View {
                     }
                 }
                 .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
+            }
             }
             Divider()
             QueueFooter()
@@ -201,7 +205,7 @@ private struct QueueListHeader: View {
             Button("Nessuno") { model.setEnabled(false) }
             Button("Inverti") { model.invertEnabled() }
         }
-        .buttonStyle(.link)
+        .buttonStyle(.accentLink)
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -251,19 +255,24 @@ struct QueueRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
-                if let g = item.grain { GrainBadge(grain: g) }
+                // ordine fisso: formato HDR, poi grana
                 if let p = item.probe { MetaBadge(meta: p.metaType, dvProfile: p.dvProfile) }
+                if let g = item.grain { GrainBadge(grain: g) }
             }
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
             if item.status == .running {
-                ProgressView(value: min(item.percent, 100), total: 100)
-                    .controlSize(.small)
-                Text(String(format: "%@ · %.1f%% · %.1f fps", item.step, item.percent, item.fps))
-                    .font(.caption2.monospacedDigit())
+                ThinProgress(value: item.percent / 100)
+                HStack {
+                    Text(String(format: "%@ · %.0f%% · %.0f fps", item.step, item.percent, item.fps))
+                    Spacer()
+                    if let r = item.remaining { Text(Fmt.remaining(r)) }
+                }
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+            } else {
+                Text(subtitle)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             if item.status == .done, let r = item.result {
                 SavingLabel(inBytes: r.inBytes, outBytes: r.outBytes)
@@ -296,29 +305,40 @@ struct QueueFooter: View {
     var body: some View {
         @Bindable var model = model
         HStack(spacing: 14) {
-            Picker("Nuovi file:", selection: $model.defaultPresetID) {
-                ForEach(model.presets) { Text($0.name).tag($0.id) }
+            // impostazioni dei nuovi file in un unico gruppo etichettato
+            HStack(spacing: 8) {
+                Text("Nuovi file").font(.caption).foregroundStyle(.secondary)
+                Picker("Preset", selection: $model.defaultPresetID) {
+                    ForEach(model.presets) { Text($0.name).tag($0.id) }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 260)
+                .help("Preset dei nuovi file")
+                Picker("Audio", selection: $model.defaultAudioMode) {
+                    Text("Audio: Pass").tag("copy")
+                    Text("Audio: E-AC3 Smart").tag("eac3")
+                    Text("Audio: Stereo AAC").tag("aac")
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help("Audio dei nuovi file")
+                Picker("DV/HDR10+", selection: $model.keepDynamicMetadata) {
+                    Text("DV: Mantieni").tag(true)
+                    Text("DV: Solo HDR10").tag(false)
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help("Dolby Vision e HDR10+ dei nuovi file: mantenuti (base HDR10 + metadati reiniettati) oppure scartati. Si cambia per file nell'editor.")
+                Button { model.chooseOutputDir() } label: {
+                    Label(model.outputDir.lastPathComponent, systemImage: "folder")
+                }
+                .help("Cartella di output: \(model.outputDirPath)")
             }
-            .frame(maxWidth: 320)
-            .disabled(model.isRunning)
-            Picker("Audio:", selection: $model.defaultAudioMode) {
-                Text("Pass").tag("copy")
-                Text("E-AC3 Smart").tag("eac3")
-                Text("Stereo AAC").tag("aac")
-            }
-            .frame(maxWidth: 190)
-            .disabled(model.isRunning)
-            Picker("DV/HDR10+:", selection: $model.keepDynamicMetadata) {
-                Text("Mantieni").tag(true)
-                Text("Solo HDR10").tag(false)
-            }
-            .frame(maxWidth: 220)
-            .help("Dolby Vision e HDR10+ dei nuovi file: mantenuti (base HDR10 + metadati reiniettati) oppure scartati. Si cambia per file nell'editor.")
-            .disabled(model.isRunning)
-            Button { model.chooseOutputDir() } label: {
-                Label(model.outputDir.lastPathComponent, systemImage: "folder")
-            }
-            .help("Cartella di output: \(model.outputDirPath)")
+            .padding(.leading, 10)
+            .padding(.trailing, 4)
+            .padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 9).fill(.background.opacity(0.6)))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.separator))
             .disabled(model.isRunning)
             Spacer()
             summary
@@ -330,12 +350,19 @@ struct QueueFooter: View {
 
     @ViewBuilder private var summary: some View {
         let s = model.doneSummary
+        let running = model.items.filter { $0.status == .running }.count
         VStack(alignment: .trailing, spacing: 2) {
-            Text("\(model.items.count) file · \(model.enabledCount) attivi · \(s.count) completati")
+            Text(running > 0 ? "\(model.items.count) file · \(running) in corso · \(s.count) completati"
+                             : "\(model.items.count) file · \(model.enabledCount) attivi · \(s.count) completati")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if s.count > 0 {
-                SavingLabel(inBytes: s.inBytes, outBytes: s.outBytes)
+            HStack(spacing: 6) {
+                if s.count > 0 { SavingLabel(inBytes: s.inBytes, outBytes: s.outBytes) }
+                if let end = model.queueFinish {
+                    Text("fine stimata \(end.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -391,7 +418,7 @@ private struct FileHeaderSection: View {
                     Chip(Fmt.duration(probe.duration))
                     Chip("\(probe.width)×\(probe.height)")
                     Chip(String(format: "%.3f fps", probe.fps))
-                    if let g = item.grain { GrainBadge(grain: g) }
+                    if let g = item.grain { GrainBadge(grain: g) }  // dopo il formato HDR, come nella riga
                 }
                 if let g = item.grain, g.level != .low, item.presetID != GrainInfo.presetID,
                    let grainPreset = model.preset(GrainInfo.presetID) {
@@ -468,18 +495,15 @@ private struct VideoSection: View {
             }
 
             if probe.isHDR && !isCopy {
-                Picker("Gamma dinamica", selection: $item.rangeMode) {
-                    if canDynamic {
-                        Text(dynamicLabel).tag(DynamicRangeMode.dynamic)
-                    }
-                    if item.plan?.mustTonemap != true {
-                        Text(staticLabel).tag(DynamicRangeMode.hdr)
-                    }
-                    if canSDR {
-                        Text("SDR (tonemap \(model.caps?.tonemapAlgo ?? "hable"))").tag(DynamicRangeMode.sdr)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Gamma dinamica")
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(rangeOptions, id: \.mode) { o in
+                            RangeTile(title: o.title, detail: o.detail, help: RangeExplanation.lines(mode: o.mode, probe: probe),
+                                      selected: item.rangeMode == o.mode) { item.rangeMode = o.mode }
+                        }
                     }
                 }
-                RangeExplanation(mode: item.rangeMode, probe: probe)
                 if probe.hasDynamicMetadata && !canDynamic, let why = item.plan?.injectBlocker, !why.isEmpty {
                     Label("\(probe.metaType) non disponibile: \(why).", systemImage: "info.circle")
                         .font(.caption)
@@ -488,29 +512,7 @@ private struct VideoSection: View {
             }
 
             if !isCopy {
-                HStack {
-                    Toggle("Crop", isOn: $item.cropEnabled)
-                        .disabled(item.cropValue.isEmpty || item.doInject)
-                    TextField("crop=w:h:x:y", text: $item.cropValue)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.body.monospaced())
-                        .disabled(item.doInject)
-                    Button {
-                        Task { await model.detectCrop(item) }
-                    } label: {
-                        if item.cropDetecting {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Text("Rileva")
-                        }
-                    }
-                    .disabled(item.cropDetecting || item.doInject)
-                }
-                if item.doInject {
-                    Text("Crop non disponibile: i metadati \(probe.metaType) descrivono il frame originale e andrebbero ricalcolati.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                CropRow(item: item, probe: probe)
             }
 
             LabeledContent("Risultato") {
@@ -525,36 +527,37 @@ private struct VideoSection: View {
     private var canDynamic: Bool { probe.hasDynamicMetadata && item.plan?.canInject == true }
     private var canSDR: Bool { item.plan?.canTonemap ?? (model.caps?.hasZscale ?? false) }
 
-    private var dynamicLabel: String {
-        probe.metaType == "DV" ? "Dolby Vision (8.1, base HDR10)" : "HDR10+ (base HDR10)"
-    }
+    private struct RangeOption { let mode: DynamicRangeMode; let title: String; let detail: String }
 
-    private var staticLabel: String {
-        switch probe.metaType {
-        case "HLG": "HLG"
-        case "DV", "HDR10+": "HDR10 statico (metadati \(probe.metaType) scartati)"
-        default: "HDR10"
+    /// Solo le scelte possibili per questo file e preset
+    private var rangeOptions: [RangeOption] {
+        var o: [RangeOption] = []
+        if canDynamic {
+            let dv = probe.metaType == "DV"
+            var d = String(localized: "Base HDR10 + metadati scena per scena.")
+            if dv && probe.dvProfile == 7 { d += " " + String(localized: "Profilo 7 → 8.1.") }
+            o.append(RangeOption(mode: .dynamic, title: dv ? "Dolby Vision 8.1" : "HDR10+", detail: d))
         }
+        if item.plan?.mustTonemap != true {
+            let hlg = probe.metaType == "HLG"
+            o.append(RangeOption(mode: .hdr, title: hlg ? "HLG" : "HDR10",
+                                 detail: probe.hasDynamicMetadata ? String(localized: "Solo base HDR10, tonemap fisso. Più veloce.")
+                                                                  : String(localized: "Mantiene l'HDR della sorgente.")))
+        }
+        if canSDR {
+            o.append(RangeOption(mode: .sdr, title: "SDR", detail: String(localized: "Per schermi non HDR. Più lento.")))
+        }
+        return o
     }
 }
 
-/// Spiega in chiaro cosa produce la scelta di gamma dinamica
-private struct RangeExplanation: View {
-    let mode: DynamicRangeMode
-    let probe: ProbeResult
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(lines, id: \.self) { l in
-                Text(l)
-            }
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
+/// Spiegazione completa di ogni scelta di gamma dinamica, mostrata come tooltip delle schede
+private enum RangeExplanation {
+    static func lines(mode: DynamicRangeMode, probe: ProbeResult) -> String {
+        rawLines(mode: mode, probe: probe).joined(separator: "\n\n")
     }
 
-    private var lines: [String] {
+    private static func rawLines(mode: DynamicRangeMode, probe: ProbeResult) -> [String] {
         let dv = probe.metaType == "DV"
         switch mode {
         case .dynamic:
@@ -611,12 +614,14 @@ private struct AudioSection: View {
             HStack {
                 Text("Audio")
                 Spacer()
-                Button("Suggerite") { item.selectedAudio = Set(probe.audio.filter(\.suggested).map(\.index)) }
-                Button("Tutte") { item.selectedAudio = Set(probe.audio.map(\.index)) }
-                Button("Nessuna") { item.selectedAudio = [] }
+                Group {
+                    Button("Suggerite") { item.selectedAudio = Set(probe.audio.filter(\.suggested).map(\.index)) }
+                    Button("Tutte") { item.selectedAudio = Set(probe.audio.map(\.index)) }
+                    Button("Nessuna") { item.selectedAudio = [] }
+                }
+                .buttonStyle(.accentLink)
+                .font(.caption)
             }
-            .buttonStyle(.link)
-            .font(.caption)
         }
         .disabled(item.isLocked)
     }
@@ -630,7 +635,7 @@ private struct AudioSection: View {
         let p = model.preset(item.presetID)
         switch item.audioMode {
         case "eac3":
-            return "AC3/E-AC3 e tracce stereo copiate; TrueHD, DTS e FLAC convertiti in E-AC3 640k (max 5.1, 7.1 ridotto a 5.1)."
+            return String(localized: "AC3/E-AC3 e tracce stereo copiate; TrueHD, DTS e FLAC convertiti in E-AC3 640k (max 5.1, 7.1 ridotto a 5.1).")
         case "aac":
             return String(localized: "Tutto in AAC 256k stereo: massima compatibilità, qualità e spazialità minori.")
         default:
@@ -659,12 +664,14 @@ private struct SubtitleSection: View {
                 HStack {
                     Text("Sottotitoli")
                     Spacer()
-                    Button("Suggeriti") { item.selectedSubs = Set(probe.subs.filter(\.suggested).map(\.index)) }
-                    Button("Tutti") { item.selectedSubs = Set(probe.subs.map(\.index)) }
-                    Button("Nessuno") { item.selectedSubs = [] }
+                    Group {
+                        Button("Suggeriti") { item.selectedSubs = Set(probe.subs.filter(\.suggested).map(\.index)) }
+                        Button("Tutti") { item.selectedSubs = Set(probe.subs.map(\.index)) }
+                        Button("Nessuno") { item.selectedSubs = [] }
+                    }
+                    .buttonStyle(.accentLink)
+                    .font(.caption)
                 }
-                .buttonStyle(.link)
-                .font(.caption)
             } footer: {
                 Text("★ = italiano forced. I sottotitoli vengono copiati; i mov_text degli MP4 diventano SRT perché l'MKV non li supporta.")
                     .font(.caption)
@@ -912,5 +919,146 @@ struct RecapSheet: View {
         }
         .padding(20)
         .frame(minWidth: 760, minHeight: 440)
+    }
+}
+
+// MARK: - Ritocco grafico: componenti della Coda
+
+/// Barra di avanzamento sottile nel colore di Encody
+struct ThinProgress: View {
+    let value: Double
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule().fill(Color.encody).frame(width: max(5, g.size.width * min(max(value, 0), 1)))
+            }
+        }
+        .frame(height: 5)
+    }
+}
+
+/// Una scelta di gamma dinamica: titolo, riga di spiegazione, spiegazione completa nel tooltip
+private struct RangeTile: View {
+    let title: String
+    let detail: String
+    let help: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.callout.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 10).fill(selected ? Color.encody.opacity(0.12) : Color.clear))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(selected ? Color.encody : Color.secondary.opacity(0.3), lineWidth: selected ? 1.5 : 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Crop su una riga: misura leggibile, interruttore, menu per rilevare o modificare il valore
+private struct CropRow: View {
+    @Environment(AppModel.self) private var model
+    @Bindable var item: QueueItem
+    let probe: ProbeResult
+    @State private var editing = false
+
+    var body: some View {
+        LabeledContent("Crop") {
+            HStack(spacing: 8) {
+                if item.doInject {
+                    Text("non disponibile con \(probe.metaType)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help("I metadati \(probe.metaType) descrivono il frame originale e andrebbero ricalcolati.")
+                } else if item.cropDetecting {
+                    ProgressView().controlSize(.small)
+                    Text("rilevamento…").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text(description)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Menu {
+                    Button("Rileva di nuovo") { Task { await model.detectCrop(item) } }
+                    Button("Modifica valore…") { editing = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(item.doInject || item.cropDetecting)
+                .popover(isPresented: $editing) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Valore FFmpeg").font(.caption).foregroundStyle(.secondary)
+                        TextField("crop=w:h:x:y", text: $item.cropValue)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body.monospaced())
+                            .frame(width: 220)
+                    }
+                    .padding(12)
+                }
+                Toggle("Crop", isOn: $item.cropEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .disabled(item.cropValue.isEmpty || item.doInject)
+            }
+        }
+    }
+
+    /// "3840×1608 · bande 276 px" dal valore crop=w:h:x:y
+    private var description: String {
+        let p = item.cropValue.replacingOccurrences(of: "crop=", with: "").split(separator: ":").compactMap { Int($0) }
+        guard p.count == 4 else { return item.cropValue.isEmpty ? String(localized: "nessun crop rilevato") : item.cropValue }
+        let bands = (probe.height - p[1]) + (probe.width - p[0])
+        return bands > 0 ? String(localized: "\(p[0])×\(p[1]) · bande \(bands) px") : String(localized: "nessuna banda nera")
+    }
+}
+
+/// Coda vuota: area di trascinamento a tutta larghezza
+private struct EmptyQueueView: View {
+    @Environment(AppModel.self) private var model
+    @State private var targeted = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "film.stack")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(Color.encody)
+            Text("Trascina qui film, serie o cartelle")
+                .font(.title3.weight(.semibold))
+            Text("mkv, mp4, mov, m2ts, ts, avi, m4v")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button("Aggiungi file…") { model.openFiles() }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut("o")
+            Text("Verranno codificati con \(model.preset(model.defaultPresetID)?.name ?? "—"): si cambia in basso, in Nuovi file.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.encody.opacity(targeted ? 0.14 : 0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.encody, style: StrokeStyle(lineWidth: 3, dash: [9, 6])))
+        .padding(20)
+        .dropDestination(for: URL.self) { urls, _ in
+            model.add(urls: urls)
+            return !urls.isEmpty
+        } isTargeted: { targeted = $0 }
     }
 }

@@ -108,6 +108,7 @@ final class QueueItem: Identifiable {
 
     var status: ItemStatus = .probing
     var step = ""
+    var stepStarted: Date?   // inizio della fase in corso, per il tempo rimanente
     var percent = 0.0
     var fps = 0.0
     var elapsed = 0.0
@@ -126,6 +127,12 @@ final class QueueItem: Identifiable {
 
     var name: String { url.lastPathComponent }
     var isLocked: Bool { status == .queued || status == .running }
+
+    /// Secondi rimanenti della fase in corso, stimati dal ritmo finora (nil all'inizio)
+    var remaining: TimeInterval? {
+        guard status == .running, let s = stepStarted, percent >= 1, percent < 100 else { return nil }
+        return Date().timeIntervalSince(s) * (100 - percent) / percent
+    }
     var isRunnable: Bool { enabled && probe != nil && [.ready, .failed, .stopped].contains(status) }
 
     var rangeMode: DynamicRangeMode {
@@ -609,7 +616,9 @@ final class AppModel {
         case "step":
             item?.step = ev.step ?? ""
             item?.percent = 0
+            item?.stepStarted = Date()
         case "progress":
+            if item?.stepStarted == nil { item?.stepStarted = Date() }
             if let s = ev.step { item?.step = s }
             item?.percent = ev.percent ?? 0
             item?.fps = ev.fps ?? 0
@@ -713,6 +722,20 @@ final class AppModel {
     }
 
     // MARK: riepilogo per la barra inferiore
+
+    /// Fine stimata della coda: ritmo del file in corso (secondi di video per secondo reale)
+    /// applicato al video ancora da fare. Approssimata: i preset possono avere velocità diverse.
+    var queueFinish: Date? {
+        guard isRunning, let cur = items.first(where: { $0.status == .running }),
+              let started = cur.stepStarted, cur.percent >= 2,
+              let dur = cur.probe?.duration, dur > 0 else { return nil }
+        let clip = { (d: Double) in self.testMode ? min(d, 300) : d }
+        let done = clip(dur) * cur.percent / 100
+        let rate = done / max(Date().timeIntervalSince(started), 1)
+        guard rate > 0 else { return nil }
+        let left = clip(dur) - done + items.filter { $0.status == .queued }.reduce(0) { $0 + clip($1.probe?.duration ?? 0) }
+        return Date().addingTimeInterval(left / rate)
+    }
 
     var doneSummary: (count: Int, inBytes: Int64, outBytes: Int64) {
         let done = items.compactMap { $0.status == .done ? $0.result : nil }

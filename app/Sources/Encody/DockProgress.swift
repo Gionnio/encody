@@ -89,7 +89,7 @@ private final class DockProgressView: NSView {
 
         let inner = track.insetBy(dx: height * 0.18, dy: height * 0.18)
         let fill = NSRect(x: inner.minX, y: inner.minY, width: max(inner.height, inner.width * progress), height: inner.height)
-        NSColor.controlAccentColor.setFill()
+        NSColor.encody.setFill()
         NSBezierPath(roundedRect: fill, xRadius: inner.height / 2, yRadius: inner.height / 2).fill()
     }
 

@@ -1,6 +1,35 @@
 import AppKit
 import SwiftUI
 
+extension NSColor {
+    /// Viola di Encody (icona e sito), più chiaro in tema scuro per il contrasto
+    static let encody = NSColor(name: "EncodyAccent") { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 0.647, green: 0.525, blue: 1.0, alpha: 1)    // #A586FF
+            : NSColor(srgbRed: 0.427, green: 0.247, blue: 0.878, alpha: 1)  // #6D3FE0
+    }
+}
+
+extension Color {
+    static let encody = Color(nsColor: .encody)
+}
+
+/// Link testuali nel viola di Encody (lo stile .link usa il blu dei link di sistema)
+struct AccentLinkButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isEnabled ? Color.encody : Color.secondary)
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .contentShape(Rectangle())
+    }
+}
+
+extension ButtonStyle where Self == AccentLinkButtonStyle {
+    static var accentLink: AccentLinkButtonStyle { AccentLinkButtonStyle() }
+}
+
 struct MetaBadge: View {
     let meta: String
     var dvProfile: Int = 0
@@ -131,7 +160,7 @@ struct TrackRow: View {
             if let planDesc {
                 Text("→ " + planDesc)
                     .font(.caption)
-                    .foregroundStyle(planDesc.contains("⚠️") ? Color.orange : Color.accentColor)
+                    .foregroundStyle(planDesc.contains("⚠️") ? Color.orange : Color.encody)
             }
         }
     }

@@ -152,7 +152,7 @@ private struct BenchSegmentsSection: View {
                 Spacer()
                 if bench.hasManualSegments {
                     Button("Ripristina automatici") { bench.analyzeSegments() }
-                        .buttonStyle(.link)
+                        .buttonStyle(.accentLink)
                         .font(.caption)
                         .disabled(bench.isAnalyzing)
                 }
@@ -188,7 +188,8 @@ private struct SegmentRow: View {
                 HStack(spacing: 6) {
                     Text("Inizio")
                         .foregroundStyle(.secondary)
-                    TextField("m:ss", text: $text)
+                    TextField("Inizio", text: $text, prompt: Text("m:ss"))
+                        .labelsHidden() // nei Form di macOS l'etichetta finirebbe sopra la casella
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
                         .monospacedDigit()
@@ -246,44 +247,120 @@ private struct BenchResultsSection: View {
     var body: some View {
         // Un benchmark usa una sola metrica per tutti i preset
         let metric = results.first.flatMap { QualityMetric(rawValue: $0.metric) } ?? .vmaf
+        let best = recommended(metric)
         Section("Risultati · \(metric.label)") {
-            if results.count > 1 {
-                Chart(results) { r in
-                    PointMark(x: .value("Dimensione (GB)", Double(r.size) / 1e9),
-                              y: .value(metric.label, r.score))
-                        .symbolSize(90)
-                        .annotation(position: .top) {
-                            Text(r.name).font(.caption2).foregroundStyle(.secondary)
-                        }
-                }
-                .chartYScale(domain: .automatic(includesZero: false))
-                .chartXScale(domain: .automatic(includesZero: false))
-                .chartXAxisLabel("Dimensione stimata (GB)")
-                .chartYAxisLabel(metric.unit.isEmpty ? metric.label : "\(metric.label) (\(metric.unit))")
-                .frame(height: 220)
-                .padding(.vertical, 6)
-            }
-            ForEach(Array(results.enumerated()), id: \.element.id) { i, r in
-                HStack(spacing: 10) {
-                    Text("\(i + 1).")
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, alignment: .trailing)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(r.name).fontWeight(i == 0 ? .semibold : .regular)
-                        Text(([ "\(Fmt.bytes(r.size)) stimati", "\(Int(r.fps.rounded())) fps"] + [r.detail].compactMap { $0 })
-                            .joined(separator: " · "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: 8) {
+                    ForEach(results) { r in
+                        ResultCard(result: r, metric: metric, recommended: r.id == best,
+                                   sourceSize: model.bench.probe?.size ?? 0) { model.enqueueFromBench(r) }
                     }
-                    Spacer()
-                    Text(metric.format(r.score))
-                        .font(.title3.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(metric.color(r.score))
-                    Button("In coda") { model.enqueueFromBench(r) }
-                        .help("Aggiunge il file alla coda con questo preset")
+                }
+                .frame(maxWidth: .infinity)
+                if results.count > 1 {
+                    // etichette alternate sopra e sotto: due preset vicini non si sovrappongono
+                    let bySize = results.sorted { $0.size < $1.size }.map(\.id)
+                    Chart(results) { r in
+                        PointMark(x: .value("Dimensione (GB)", Double(r.size) / 1e9),
+                                  y: .value(metric.label, r.score))
+                            .symbolSize(r.id == best ? 130 : 80)
+                            .foregroundStyle(r.id == best ? Color.encody : Color.secondary)
+                            .annotation(position: (bySize.firstIndex(of: r.id) ?? 0) % 2 == 0 ? .bottom : .top) {
+                                Text(shortName(r.name)).font(.caption2).foregroundStyle(.secondary)
+                            }
+                    }
+                    .chartYScale(domain: .automatic(includesZero: false))
+                    .chartXScale(domain: .automatic(includesZero: false))
+                    .chartXAxisLabel("Dimensione stimata (GB)")
+                    .chartYAxisLabel(metric.unit.isEmpty ? metric.label : "\(metric.label) (\(metric.unit))")
+                    .frame(width: 280, height: 230)
                 }
             }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// Miglior rapporto qualità/dimensione: il più piccolo tra quelli almeno "ottimo", altrimenti il punteggio più alto
+    private func recommended(_ metric: QualityMetric) -> String? {
+        let good = results.filter { $0.score >= metric.thresholds.1 }
+        return (good.min { $0.size < $1.size } ?? results.max { $0.score < $1.score })?.id
+    }
+
+    private func shortName(_ name: String) -> String {
+        name.replacingOccurrences(of: "4K ", with: "").replacingOccurrences(of: "CPU ", with: "")
+    }
+}
+
+/// Un preset nei risultati: punteggio, barra della qualità, dimensione e risparmio
+private struct ResultCard: View {
+    let result: BenchResult
+    let metric: QualityMetric
+    let recommended: Bool
+    let sourceSize: Int64
+    let enqueue: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(result.name).fontWeight(.semibold).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if recommended {
+                    Text("Consigliato")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 7).padding(.vertical, 1)
+                        .background(Color.encody.opacity(0.14), in: Capsule())
+                        .foregroundStyle(Color.encody)
+                }
+                Spacer(minLength: 8)
+                Text(metric.format(result.score) + (metric.unit.isEmpty ? "" : " " + metric.unit))
+                    .font(.title3.monospacedDigit().weight(.bold))
+                    .foregroundStyle(metric.color(result.score))
+            }
+            HStack(spacing: 8) {
+                Text(meta).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Text(verdict).font(.caption).foregroundStyle(.secondary)
+                Button(String(localized: "bench.enqueue", defaultValue: "In coda"), action: enqueue) // "In coda" è anche uno stato
+                    .controlSize(.small)
+                    .help("Aggiunge il file alla coda con questo preset")
+            }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.quaternary)
+                    Capsule().fill(metric.color(result.score))
+                        .frame(width: max(6, g.size.width * metric.normalized(result.score)))
+                }
+            }
+            .frame(height: 6)
+            if let d = result.detail {
+                Text(d).font(.caption2.monospacedDigit()).foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 11).fill(recommended ? Color.encody.opacity(0.07) : Color.clear))
+        .overlay(RoundedRectangle(cornerRadius: 11)
+            .strokeBorder(recommended ? Color.encody : Color.secondary.opacity(0.25), lineWidth: recommended ? 1.5 : 1))
+    }
+
+    private var meta: String {
+        var parts = [String(localized: "\(Fmt.bytes(result.size)) stimati"), "\(Int(result.fps.rounded())) fps"]
+        if sourceSize > 0 {
+            let pct = Fmt.change(sourceSize, result.size)
+            parts.append(String(format: String(localized: "%+.0f%% rispetto all'originale"), pct))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var verdict: String {
+        let t = metric.thresholds
+        switch result.score {
+        case t.0...: return String(localized: "praticamente indistinguibile")
+        case t.1..<t.0: return String(localized: "ottimo")
+        case t.2..<t.1: return String(localized: "buono")
+        default: return String(localized: "artefatti visibili")
         }
     }
 }

@@ -18,6 +18,7 @@ struct SettingsView: View {
                     ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .onChange(of: appTheme) { AppTheme.applyToApp() }
                 LanguagePicker()
                 Toggle(isOn: $notifyQueueDone) {
                     Text("Notifica a fine coda")

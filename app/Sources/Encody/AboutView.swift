@@ -24,6 +24,12 @@ enum AppTheme: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Applica il tema scelto nelle Impostazioni a tutta l'app (AppKit compreso)
+    @MainActor static func applyToApp() {
+        let theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .system
+        NSApp.appearance = theme.appearance
+    }
+
     /// Per le finestre AppKit (Informazioni), dove preferredColorScheme non basta
     var appearance: NSAppearance? {
         switch self {

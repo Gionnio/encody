@@ -18,6 +18,7 @@ struct EncodyApp: App {
             ContentView()
                 .environment(model)
                 .frame(minWidth: 1000, minHeight: 640)
+                .tint(.encody)
                 .preferredColorScheme(appTheme.colorScheme)
         }
         .commands {
@@ -37,12 +38,19 @@ struct EncodyApp: App {
         Settings {
             SettingsView()
                 .environment(model)
+                .tint(.encody)
                 .preferredColorScheme(appTheme.colorScheme)
         }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Tema dell'app anche per AppKit: con il solo preferredColorScheme alcuni controlli (menu a comparsa)
+    /// restavano disegnati col tema precedente, testo nero su fondo scuro
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        AppTheme.applyToApp()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         signal(SIGPIPE, SIG_IGN) // un motore che esce presto non deve far crashare l'app
         // Homebrew e i download mettono in quarantena tutto il bundle: il motore incluso, lanciato
@@ -110,30 +118,55 @@ struct EngineStatusView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        Group {
             if let caps = model.caps {
-                Label(caps.version, systemImage: "gearshape.2")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 let missing = missingTools(caps)
-                if !missing.isEmpty {
-                    Label("Mancano: \(missing.joined(separator: ", "))", systemImage: "exclamationmark.triangle.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Circle().fill(missing.isEmpty ? Color.green : Color.orange).frame(width: 7, height: 7)
+                        Text("Motore \(caps.version.replacingOccurrences(of: "ENCODY v", with: ""))")
+                            .font(.caption.weight(.semibold))
+                    }
+                    Text(ffmpegLine(caps))
                         .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(.secondary)
+                    if missing.isEmpty {
+                        Text("DV e HDR10+ pronti").font(.caption2).foregroundStyle(.secondary)
+                    } else {
+                        Text("Mancano: \(missing.joined(separator: ", "))")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 9).fill(.background.opacity(0.7)))
+                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.separator))
+                .help(missing.isEmpty ? "" : String(localized: "Le funzioni che richiedono questi strumenti sono disattivate. Dettagli in Impostazioni."))
             } else if let err = model.capsError {
-                Label(err, systemImage: "xmark.octagon.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-                SettingsLink { Text("Apri Impostazioni…") }
-                    .font(.caption)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(err, systemImage: "xmark.octagon.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    SettingsLink { Text("Apri Impostazioni…") }
+                        .font(.caption)
+                }
             } else {
                 ProgressView().controlSize(.small)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// "FFmpeg 9.0.2 · zscale · libvmaf"
+    private func ffmpegLine(_ c: Caps) -> String {
+        var parts = ["FFmpeg \(c.ffmpegVersion ?? "?")"]
+        if c.hasZscale { parts.append("zscale") }
+        if c.hasVmaf { parts.append("libvmaf") }
+        return parts.joined(separator: " · ")
     }
 
     private func missingTools(_ c: Caps) -> [String] {
