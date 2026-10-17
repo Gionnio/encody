@@ -396,8 +396,8 @@ struct QualityView: View {
         @Bindable var q = model.quality
         Form {
             Section("File") {
-                FilePickRow(title: "Originale (reference)", url: q.refURL) { q.refURL = $0; q.result = nil }
-                FilePickRow(title: "Encodato", url: q.distURL) { q.distURL = $0; q.result = nil }
+                FilePickRow(title: String(localized: "Originale (reference)"), url: q.refURL) { q.refURL = $0; q.result = nil }
+                FilePickRow(title: String(localized: "Encodato"), url: q.distURL) { q.distURL = $0; q.result = nil }
             }
             .disabled(q.isRunning)
 

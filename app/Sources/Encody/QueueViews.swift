@@ -335,7 +335,7 @@ struct QueueFooter: View {
                     Text("DV: Solo HDR10").tag(false)
                 }
                 .labelsHidden()
-                .fixedSize()
+                .frame(minWidth: 140, maxWidth: 170) // con fixedSize restava largo una lettera
                 .help("Dolby Vision e HDR10+ dei nuovi file: mantenuti (base HDR10 + metadati reiniettati) oppure scartati. Si cambia per file nell'editor.")
                 Button { model.chooseOutputDir() } label: {
                     Label(model.outputDir.lastPathComponent, systemImage: "folder")

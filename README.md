@@ -32,6 +32,8 @@
 - **Appearance:** System, Light and Dark themes.
 - **Multi-language:** Native support for Italian 🇮🇹 and English 🇬🇧 (system language or chosen in Settings), engine messages included.
 
+<p align="center"><img src="docs/screenshot-benchmark.png" width="760" alt="Encody benchmark"></p>
+
 ## 🚀 Requirements
 - macOS 14 (Sonoma) or later, Apple Silicon.
 - [FFmpeg](https://ffmpeg.org) 7.1 or later. Encody checks what your FFmpeg supports and disables only what is missing:

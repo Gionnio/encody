@@ -26,7 +26,7 @@ struct PresetsView: View {
             }
             .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("Preset")
+        .navigationTitle(String(localized: "sidebar.presets", defaultValue: "Preset"))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu {

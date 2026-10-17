@@ -354,3 +354,5 @@
 "Encody rilegge il file finito: durata, decodifica di inizio e fine, HDR e tracce." = "Encody reads back the finished file: duration, decoding of start and end, HDR and tracks.";
 "Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento e richiede spazio temporaneo. Crop e ridimensionamento sono possibili: le bande nere del Dolby Vision vengono ricalcolate." = "How it works: extracts the metadata, encodes the video, checks that the frame counts match, reinserts the metadata and remuxes. Slower and needs temporary space. Crop and downscaling are supported: the Dolby Vision letterbox metadata is recomputed.";
 "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Più veloce." = "On very bright TVs the difference is minimal; on dimmer TVs bright scenes can lose some detail. Faster.";
+"Originale (reference)" = "Original (reference)";
+"Encodato" = "Encoded";
