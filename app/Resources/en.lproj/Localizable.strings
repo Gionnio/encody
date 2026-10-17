@@ -64,7 +64,6 @@
 "ColorVideoVDP installato." = "ColorVideoVDP installed.";
 "ColorVideoVDP non installato (Impostazioni)" = "ColorVideoVDP not installed (Settings)";
 "Comando FFmpeg (esempio con sorgente HDR10)" = "FFmpeg command (example with an HDR10 source)";
-"Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento, richiede spazio temporaneo, niente crop né ridimensionamento." = "How it works: extracts the metadata, encodes the video, checks that the frame counts match and re-injects them, then remuxes. Slower, needs temporary space, no crop or scaling.";
 "Completato" = "Completed";
 "Conserva l'HDR (10 bit)." = "Keeps HDR (10-bit).";
 "Conserva la grana" = "Keep Grain";
@@ -74,7 +73,6 @@
 "Copia di %@" = "Copy of %@";
 "Copia il comando" = "Copy the command";
 "Copia senza ricodificare" = "Copy without re-encoding";
-"Crop non disponibile: i metadati %@ descrivono il frame originale e andrebbero ricalcolati." = "Crop not available: the %@ metadata describes the original frame and would need to be recomputed.";
 "Descrizione" = "Description";
 "Di sistema" = "System";
 "Dimensione (GB)" = "Size (GB)";
@@ -243,7 +241,6 @@
 "Sottotitoli" = "Subtitles";
 "Spezzoni" = "Samples";
 "Strumenti rilevati" = "Detected Tools";
-"Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Veloce e con crop possibile." = "On very bright TVs the difference is minimal; on dimmer TVs bright scenes may lose some detail. Fast, and crop is possible.";
 "Suggerita" = "Suggested";
 "Suggerite" = "Suggested";
 "Suggeriti" = "Suggested";
@@ -324,7 +321,6 @@
 "DV e HDR10+ pronti" = "DV and HDR10+ ready";
 "DV: Mantieni" = "DV: Keep";
 "DV: Solo HDR10" = "DV: HDR10 only";
-"I metadati %@ descrivono il frame originale e andrebbero ricalcolati." = "The %@ metadata describes the original frame and would need to be recomputed.";
 "Le funzioni che richiedono questi strumenti sono disattivate. Dettagli in Impostazioni." = "Features that need these tools are disabled. Details in Settings.";
 "Mantiene l'HDR della sorgente." = "Keeps the source's HDR.";
 "Modifica valore…" = "Edit Value…";
@@ -346,9 +342,15 @@
 "meno di un minuto" = "less than a minute";
 "nessun crop rilevato" = "no crop detected";
 "nessuna banda nera" = "no black bars";
-"non disponibile con %@" = "not available with %@";
 "ottimo" = "excellent";
 "praticamente indistinguibile" = "practically indistinguishable";
 "rilevamento…" = "detecting…";
 "bench.enqueue" = "Add to Queue";
 "Audio dei nuovi file" = "Audio for new files";
+
+/* Verifica del file finito */
+"Da controllare" = "Needs review";
+"Verifica del file" = "File Check";
+"Encody rilegge il file finito: durata, decodifica di inizio e fine, HDR e tracce." = "Encody reads back the finished file: duration, decoding of start and end, HDR and tracks.";
+"Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento e richiede spazio temporaneo. Crop e ridimensionamento sono possibili: le bande nere del Dolby Vision vengono ricalcolate." = "How it works: extracts the metadata, encodes the video, checks that the frame counts match, reinserts the metadata and remuxes. Slower and needs temporary space. Crop and downscaling are supported: the Dolby Vision letterbox metadata is recomputed.";
+"Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Più veloce." = "On very bright TVs the difference is minimal; on dimmer TVs bright scenes can lose some detail. Faster.";

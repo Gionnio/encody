@@ -56,6 +56,9 @@ struct JobResult {
     let elapsed: Double
     let speed: Double
     let avgFps: Double
+    /// Verifica del file finito fatta dal motore
+    let checks: [PresetTestCheck]
+    var warnings: [PresetTestCheck] { checks.filter { $0.level != "ok" } }
 }
 
 struct RecapRow: Identifiable {
@@ -320,7 +323,7 @@ final class AppModel {
                 item.pendingSpec = nil
             }
             item.status = .ready
-            if preset(item.presetID)?.isCopy == false, !item.doInject, item.cropValue.isEmpty {
+            if preset(item.presetID)?.isCopy == false, item.cropValue.isEmpty {
                 enqueueCrop(item)
             }
             // grana: un file alla volta, in coda dietro al crop (entrambi leggono molti dati dal disco)
@@ -388,7 +391,7 @@ final class AppModel {
         j.outputPath = item.outputURL.path
         j.tonemap = item.tonemap && !isCopy
         j.doInject = item.doInject && !item.tonemap && !isCopy
-        j.crop = (item.cropEnabled && !j.doInject && !isCopy) ? item.cropValue : ""
+        j.crop = (item.cropEnabled && !isCopy) ? item.cropValue : ""
         j.audioMode = item.audioMode
         j.selAudio = p.audio.filter { item.selectedAudio.contains($0.index) }.map(\.sel)
         j.selSubs = p.subs.filter { item.selectedSubs.contains($0.index) }.map(\.sel)
@@ -406,11 +409,7 @@ final class AppModel {
             // i vincoli del motore vincono sulle scelte UI
             if item.tonemap && !plan.canTonemap { item.tonemap = false }
             if plan.mustTonemap == true && plan.canTonemap { item.tonemap = true }
-            if item.doInject && !plan.canInject {
-                item.doInject = false
-                // l'inject bloccava il crop: ora si può rilevare
-                if preset(item.presetID)?.isCopy == false, item.cropValue.isEmpty { enqueueCrop(item) }
-            }
+            if item.doInject && !plan.canInject { item.doInject = false }
         } catch {
             item.planError = error.localizedDescription
         }
@@ -635,7 +634,8 @@ final class AppModel {
                 item.status = .done
                 item.percent = 100
                 item.result = JobResult(inBytes: ev.inBytes ?? 0, outBytes: ev.outBytes ?? 0, estimated: ev.estimated ?? false,
-                                        elapsed: ev.elapsed ?? 0, speed: ev.speed ?? 0, avgFps: ev.avgFps ?? 0)
+                                        elapsed: ev.elapsed ?? 0, speed: ev.speed ?? 0, avgFps: ev.avgFps ?? 0,
+                                        checks: ev.checks ?? [])
             case "stop":
                 item.status = .stopped
             default:

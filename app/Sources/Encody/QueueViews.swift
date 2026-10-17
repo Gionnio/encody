@@ -275,7 +275,15 @@ struct QueueRow: View {
                     .lineLimit(1)
             }
             if item.status == .done, let r = item.result {
-                SavingLabel(inBytes: r.inBytes, outBytes: r.outBytes)
+                HStack(spacing: 8) {
+                    SavingLabel(inBytes: r.inBytes, outBytes: r.outBytes)
+                    if !r.warnings.isEmpty {
+                        Label("Da controllare", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .help(r.warnings.map(\.title).joined(separator: "\n"))
+                    }
+                }
             }
             if item.status == .failed, let e = item.errorMessage {
                 Text(e.components(separatedBy: "\n").first ?? e)
@@ -320,7 +328,7 @@ struct QueueFooter: View {
                     Text("Audio: Stereo AAC").tag("aac")
                 }
                 .labelsHidden()
-                .fixedSize()
+                .frame(minWidth: 165, maxWidth: 190) // con fixedSize il menu restava largo una lettera
                 .help("Audio dei nuovi file")
                 Picker("DV/HDR10+", selection: $model.keepDynamicMetadata) {
                     Text("DV: Mantieni").tag(true)
@@ -564,7 +572,7 @@ private enum RangeExplanation {
             var l = [
                 dv ? String(localized: "Output Dolby Vision profilo 8.1: le TV Dolby Vision usano i metadati scena per scena dell'originale, tutte le altre riproducono il base layer HDR10.")
                    : String(localized: "Output HDR10+: le TV HDR10+ usano i metadati scena per scena dell'originale, tutte le altre riproducono l'HDR10."),
-                String(localized: "Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento, richiede spazio temporaneo, niente crop né ridimensionamento."),
+                String(localized: "Come funziona: estrae i metadati, codifica il video, verifica che il numero di frame coincida e li reinserisce, poi rimuxa. Più lento e richiede spazio temporaneo. Crop e ridimensionamento sono possibili: le bande nere del Dolby Vision vengono ricalcolate."),
             ]
             if dv && probe.dvProfile == 7 {
                 l.append(String(localized: "La sorgente è profilo 7 (dual layer): viene convertita in 8.1 e l'enhancement layer va perso."))
@@ -575,7 +583,7 @@ private enum RangeExplanation {
             if probe.hasDynamicMetadata {
                 return [
                     String(localized: "Codifica solo il base layer HDR10 e scarta i metadati \(probe.metaType): ogni TV HDR lo riproduce, ma il tonemapping usa valori fissi per tutto il film invece che scena per scena."),
-                    String(localized: "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Veloce e con crop possibile."),
+                    String(localized: "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Più veloce."),
                 ]
             }
             return [String(localized: "Mantiene l'HDR10 della sorgente.")]
@@ -745,6 +753,15 @@ private struct ResultSection: View {
                 Button("Mostra nel Finder") { model.reveal(item.outputURL) }
                 Button("Verifica qualità") { model.openQuality(for: item) }
                 Spacer()
+            }
+        }
+        if !result.checks.isEmpty {
+            Section {
+                ForEach(result.checks, id: \.self) { CheckRow(check: $0) }
+            } header: {
+                Text("Verifica del file")
+            } footer: {
+                Text("Encody rilegge il file finito: durata, decodifica di inizio e fine, HDR e tracce.")
             }
         }
     }
@@ -978,12 +995,7 @@ private struct CropRow: View {
     var body: some View {
         LabeledContent("Crop") {
             HStack(spacing: 8) {
-                if item.doInject {
-                    Text("non disponibile con \(probe.metaType)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help("I metadati \(probe.metaType) descrivono il frame originale e andrebbero ricalcolati.")
-                } else if item.cropDetecting {
+                if item.cropDetecting {
                     ProgressView().controlSize(.small)
                     Text("rilevamento…").font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -1000,7 +1012,7 @@ private struct CropRow: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .disabled(item.doInject || item.cropDetecting)
+                .disabled(item.cropDetecting)
                 .popover(isPresented: $editing) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Valore FFmpeg").font(.caption).foregroundStyle(.secondary)
@@ -1015,7 +1027,7 @@ private struct CropRow: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
                     .controlSize(.small)
-                    .disabled(item.cropValue.isEmpty || item.doInject)
+                    .disabled(item.cropValue.isEmpty)
             }
         }
     }

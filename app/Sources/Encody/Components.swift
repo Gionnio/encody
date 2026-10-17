@@ -234,3 +234,20 @@ struct DropHint: View {
         .allowsHitTesting(false)
     }
 }
+
+/// Esito di un controllo del motore (prova dei preset, verifica del file finito)
+struct CheckRow: View {
+    let check: PresetTestCheck
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(check.title, systemImage: check.level == "ok" ? "checkmark.circle.fill"
+                  : (check.level == "warning" ? "exclamationmark.triangle.fill" : "xmark.octagon.fill"))
+                .foregroundStyle(check.level == "ok" ? Color.green : (check.level == "warning" ? .orange : .red))
+            if let d = check.detail, !d.isEmpty {
+                Text(d).font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
+                    .padding(.leading, 22)
+            }
+        }
+    }
+}

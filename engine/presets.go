@@ -377,6 +377,7 @@ var reservedArgs = map[string]string{
 	"-b:v": T("il bitrate (usa il campo Bitrate)"), "-maxrate": T("il bitrate massimo"), "-bufsize": T("il bitrate massimo"),
 	"-x265-params": T("i parametri x265 (usa il campo Parametri encoder)"), "-x264-params": T("i parametri x264 (usa il campo Parametri encoder)"),
 	"-svtav1-params": T("i parametri SVT-AV1 (usa il campo Parametri encoder)"),
+	"-dolbyvision":   T("il Dolby Vision (lo reinserisce il motore)"),
 }
 
 // Chiavi dei parametri encoder che il motore imposta da sé (HDR10 e tag colore)

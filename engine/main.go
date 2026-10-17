@@ -95,6 +95,24 @@ type ToolPaths struct {
 	CVVDP       string // ColorVideoVDP (Python/PyTorch), facoltativo
 	Encoders    map[string]bool
 	FFmpegVer   string
+	dvOpt       map[string]bool // encoder con l'opzione -dolbyvision (FFmpeg 7+), letto alla prima richiesta
+	dvOptMu     sync.Mutex
+}
+
+// FFmpeg 7+ passa da sé l'RPU Dolby Vision negli encoder che lo supportano (x265 con VBV, SVT-AV1):
+// il motore lo spegne sempre e gestisce il Dolby Vision solo con dovi_tool, dove controlla frame e bande nere
+func encoderHasDVOption(enc string) bool {
+	Tools.dvOptMu.Lock()
+	defer Tools.dvOptMu.Unlock()
+	if v, ok := Tools.dvOpt[enc]; ok {
+		return v
+	}
+	if Tools.dvOpt == nil {
+		Tools.dvOpt = map[string]bool{}
+	}
+	out, _ := exec.Command(Tools.FFmpeg, "-hide_banner", "-h", "encoder="+enc).Output()
+	Tools.dvOpt[enc] = strings.Contains(string(out), "-dolbyvision ")
+	return Tools.dvOpt[enc]
 }
 
 // Preset pronto per l'uso, compilato da una PresetSpec (presets.go)
@@ -138,6 +156,7 @@ type Job struct {
 	SelSubs    []TrackSel `json:"sel_subs"`
 	Duration   float64    `json:"duration"`
 	FPSStr     string     `json:"fps_str"`
+	SkipVerify bool       `json:"-"` // benchmark: niente verifica finale sugli spezzoni
 }
 
 type TrackSel struct {
@@ -159,6 +178,7 @@ type ProgressUpdate struct {
 	Info    string // messaggio da stampare su riga propria
 	Err     error
 	Done    bool
+	Checks  []testCheck // verifica del file finito, con Done
 }
 
 // ==========================================
@@ -888,6 +908,9 @@ func videoArgs(job Job, dropFPSMode bool) []string {
 			out = append(out, o)
 		}
 	}
+	if job.Preset.Type != "copy" && encoderHasDVOption(job.Preset.Encoder) {
+		out = append(out, "-dolbyvision", "0")
+	}
 	return out
 }
 
@@ -1028,8 +1051,6 @@ func injectBlocker(meta string, dvProfile int, p Preset) string {
 	switch {
 	case p.Type != "copy" && p.Codec != "hevc":
 		return T("l'encoder del preset non è HEVC: dovi_tool e hdr10plus_tool reinseriscono i metadati solo in HEVC")
-	case p.Scale > 0:
-		return T("inject non supportato con i preset scalati")
 	case meta == "DV" && dvProfile == 5:
 		return T("il profilo 5 non è convertibile in 8.1")
 	case Tools.MkvMerge == "":
@@ -1066,7 +1087,15 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		job.DoInject = false
 	}
 
-	workDir, err := os.MkdirTemp("", "enc_job")
+	sc, err := checkSpace(job, job.DoInject)
+	if err != nil {
+		return err
+	}
+	if sc.Warning != "" {
+		ch <- ProgressUpdate{Info: sc.Warning}
+	}
+	// accanto all'output la cartella è nascosta, così non compare nelle librerie dei media server
+	workDir, err := os.MkdirTemp(sc.TmpParent, map[bool]string{true: ".encody-tmp-", false: "enc_job"}[sc.TmpParent != ""])
 	if err != nil {
 		return err
 	}
@@ -1116,16 +1145,20 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			srcIn = []string{"-r", job.FPSStr} // l'HEVC raw non ha timestamp
 		}
 
-		report(T("Audio Extract"))
-		tmpAudio := filepath.Join(workDir, "audio.mkv")
-		cmdAud := []string{"-y", "-i", job.InputPath, "-vn"}
-		if TestModeActive {
-			cmdAud = append(cmdAud, "-t", TestDuration)
-		}
-		cmdAud = append(cmdAud, buildAudioArgs(job)...)
-		cmdAud = append(cmdAud, tmpAudio)
-		if _, err := runFFmpegPiped(ctx, cmdAud, ch, "Audio Extract", dur); err != nil {
-			return err
+		// Senza tracce audio né sottotitoli FFmpeg non crea il file: si muxa solo il video
+		var tmpAudio string
+		if len(job.SelAudio)+len(job.SelSubs) > 0 {
+			report(T("Audio Extract"))
+			tmpAudio = filepath.Join(workDir, "audio.mkv")
+			cmdAud := []string{"-y", "-i", job.InputPath, "-vn"}
+			if TestModeActive {
+				cmdAud = append(cmdAud, "-t", TestDuration)
+			}
+			cmdAud = append(cmdAud, buildAudioArgs(job)...)
+			cmdAud = append(cmdAud, tmpAudio)
+			if _, err := runFFmpegPiped(ctx, cmdAud, ch, "Audio Extract", dur); err != nil {
+				return err
+			}
 		}
 
 		report(T("Meta Extract"))
@@ -1140,14 +1173,17 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		if err != nil {
 			return err
 		}
+		if job.MetaType == "DV" && (job.Crop != "" || job.Preset.Scale > 0) {
+			if metaFile, err = adjustActiveArea(ctx, job, metaFile, workDir); err != nil {
+				return err
+			}
+		}
 
 		report("Video Encode")
 		rawVid := filepath.Join(workDir, "video.hevc")
 		cmdVid := append([]string{"-y"}, srcIn...)
 		cmdVid = append(cmdVid, "-i", src, "-map", srcMap)
-		if job.Crop != "" {
-			cmdVid = append(cmdVid, "-vf", job.Crop)
-		}
+		cmdVid = append(cmdVid, videoFilterArgs(job)...)
 		cmdVid = append(cmdVid, videoArgs(job, true)...)
 		cmdVid = append(cmdVid, colorArgs(job)...)
 		// passthrough: un frame in uscita per ogni frame decodificato, niente duplicati/scarti (niente più -r)
@@ -1184,7 +1220,12 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		os.Remove(rawVid) // libera spazio prima del mux
 
 		report("Muxing")
-		warn, err := runMkvmerge(ctx, "--default-duration", "0:"+job.FPSStr+"p", "-o", job.OutputPath, injVid, tmpAudio)
+		muxArgs := append([]string{"--default-duration", "0:" + job.FPSStr + "p", "-o", job.OutputPath}, hdrMuxArgs(job, 0)...)
+		muxArgs = append(muxArgs, injVid)
+		if tmpAudio != "" {
+			muxArgs = append(muxArgs, tmpAudio)
+		}
+		warn, err := runMkvmerge(ctx, muxArgs...)
 		if err != nil {
 			return err
 		}
@@ -1193,47 +1234,64 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		}
 	}
 
-	ch <- ProgressUpdate{Percent: 100, Step: "Done", Done: true}
+	var checks []testCheck
+	if !job.SkipVerify {
+		report(T("Verifica finale"))
+		if checks, err = verifyOutput(ctx, job, dur); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf(T("verifica finale: %w"), err)
+		}
+	}
+	ch <- ProgressUpdate{Percent: 100, Step: "Done", Done: true, Checks: checks}
 	return nil
 }
 
 type runResult struct {
-	FPS  float64
-	Err  error
-	Done bool
+	FPS    float64
+	Err    error
+	Done   bool
+	Checks []testCheck
 }
 
 // Esegue un job e passa ogni update (progress, step, info) alla callback. Usato da CLI e GUI.
 // Filtri, mappa e argomenti video del percorso diretto (senza inject): usati dalla codifica,
 // dall'anteprima dei preset e dalla loro prova
 func encodeVideoArgs(job Job) []string {
-	var cmd []string
-	if job.Preset.Type != "copy" {
-		vf := []string{}
-		if job.Crop != "" {
-			vf = append(vf, job.Crop)
-		}
-		if job.Preset.Scale > 0 {
-			// Scaling prima del tonemap: la parte float a 32 bit lavora su meno pixel
-			vf = append(vf, fmt.Sprintf("scale=%d:-2:flags=lanczos", job.Preset.Scale))
-		}
-		if job.ToneMap {
-			vf = append(vf, tonemapChain(job)) // termina con format=p010le (gli encoder a 8 bit convertono da sé)
-		} else if job.Preset.FilterFormat != "" {
-			vf = append(vf, "format="+job.Preset.FilterFormat)
-		} else if job.Preset.Scale > 0 && job.Preset.TenBit {
-			vf = append(vf, "format=p010le")
-		}
-		if len(vf) > 0 {
-			cmd = append(cmd, "-vf", strings.Join(vf, ","))
-		}
-	}
+	cmd := videoFilterArgs(job)
 	cmd = append(cmd, "-map", videoMap(job))
 	cmd = append(cmd, videoArgs(job, false)...)
 	if job.Preset.Type != "copy" {
 		cmd = append(cmd, colorArgs(job)...)
 	}
 	return cmd
+}
+
+// Filtri video (crop, scala, tonemap, formato), uguali nel percorso diretto e in quello con inject
+func videoFilterArgs(job Job) []string {
+	if job.Preset.Type == "copy" {
+		return nil
+	}
+	vf := []string{}
+	if job.Crop != "" {
+		vf = append(vf, job.Crop)
+	}
+	if job.Preset.Scale > 0 {
+		// Scaling prima del tonemap: la parte float a 32 bit lavora su meno pixel
+		vf = append(vf, fmt.Sprintf("scale=%d:-2:flags=lanczos", job.Preset.Scale))
+	}
+	if job.ToneMap {
+		vf = append(vf, tonemapChain(job)) // termina con format=p010le (gli encoder a 8 bit convertono da sé)
+	} else if job.Preset.FilterFormat != "" {
+		vf = append(vf, "format="+job.Preset.FilterFormat)
+	} else if job.Preset.Scale > 0 && job.Preset.TenBit {
+		vf = append(vf, "format=p010le")
+	}
+	if len(vf) == 0 {
+		return nil
+	}
+	return []string{"-vf", strings.Join(vf, ",")}
 }
 
 func runJob(ctx context.Context, job Job, on func(ProgressUpdate)) runResult {
@@ -1251,6 +1309,7 @@ func runJob(ctx context.Context, job Job, on func(ProgressUpdate)) runResult {
 			r.Err = u.Err
 		case u.Done:
 			r.Done = true
+			r.Checks = u.Checks
 		default:
 			if u.FPS > 0 {
 				r.FPS = u.FPS
@@ -1764,7 +1823,7 @@ func benchOne(ctx context.Context, info *MediaInfo, ref BenchRef, dir string, p 
 		InputPath: refFile, OutputPath: outFile, Preset: p,
 		MetaType: info.MetaType, DVProfile: info.DVProfile,
 		ColorPrim: info.ColorPrim, ColorTrc: info.ColorTrc, ColorSpace: info.ColorSpace,
-		Duration: benchDur, FPSStr: info.FPSStr, AudioMode: "copy",
+		Duration: benchDur, FPSStr: info.FPSStr, AudioMode: "copy", SkipVerify: true,
 	}
 	r := runJob(ctx, job, on)
 	if r.Err != nil {
@@ -2085,8 +2144,8 @@ func buildJobs(autoFile string, autoPreset *Preset) []Job {
 				fmt.Printf("%sℹ️  Metadati dinamici ignorati: %s. L'output sarà HDR10 statico.%s\n", C.Yellow, why, C.Reset)
 			} else {
 				fmt.Println("Metadati dinamici:")
-				fmt.Println(" [1] Ignora        HDR10 statico, veloce, crop possibile")
-				fmt.Printf(" [2] Inject (Safe) mantiene %s; estrazione + verifica frame + mux (niente crop)\n", info.MetaType)
+				fmt.Println(" [1] Ignora        HDR10 statico, veloce")
+				fmt.Printf(" [2] Inject (Safe) mantiene %s; estrazione + verifica frame + mux\n", info.MetaType)
 				if prompt("> ") == "2" {
 					doInject = true
 				}
@@ -2094,7 +2153,7 @@ func buildJobs(autoFile string, autoPreset *Preset) []Job {
 		}
 
 		crop := ""
-		if preset.Type != "copy" && !doInject {
+		if preset.Type != "copy" {
 			crop = detectCrop(f, info.Duration)
 			if crop != "" {
 				fmt.Printf("Crop: %s. Usare? [s/n] (Invio=Si): ", crop)
@@ -2494,6 +2553,11 @@ func runQueue(ctx context.Context, jobs []Job) {
 		case r.Done:
 			o.Status = "ok"
 			fmt.Printf("%s✅ Completato →%s %s\n", C.Green, C.Reset, homeShort(j.OutputPath))
+			for _, c := range r.Checks {
+				if c.Level != "ok" {
+					fmt.Printf("%s⚠️  %s%s %s\n", C.Yellow, c.Title, C.Reset, c.Detail)
+				}
+			}
 			o.In, o.Out = printFileRecap(j, elapsed)
 		default:
 			o.Status = "fail"

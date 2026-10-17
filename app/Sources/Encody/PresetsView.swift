@@ -586,17 +586,7 @@ private struct TestSection: View {
                     }
                 }
             }
-            ForEach(pm.testChecks, id: \.self) { c in
-                VStack(alignment: .leading, spacing: 2) {
-                    Label(c.title, systemImage: c.level == "ok" ? "checkmark.circle.fill"
-                          : (c.level == "warning" ? "exclamationmark.triangle.fill" : "xmark.octagon.fill"))
-                        .foregroundStyle(c.level == "ok" ? Color.green : (c.level == "warning" ? .orange : .red))
-                    if let d = c.detail, !d.isEmpty {
-                        Text(d).font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
-                            .padding(.leading, 22)
-                    }
-                }
-            }
+            ForEach(pm.testChecks, id: \.self) { CheckRow(check: $0) }
             if let fps = pm.testFPS, fps > 0 {
                 LabeledContent("Velocità sul clip") {
                     Text(String(format: String(localized: "%.1f fps · un film di 2 ore ≈ %@"), fps, Fmt.duration(2 * 3600 * 23.976 / fps)))

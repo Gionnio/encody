@@ -317,6 +317,9 @@ func cmdProbe(path string) int {
 	if !anySuggested && len(out.Audio) > 0 {
 		out.Audio[0].Suggested = true
 	}
+	if info.DVProfile == 7 && dvELType(path) == "FEL" {
+		out.Warnings = append(out.Warnings, T("Dolby Vision profilo 7 con FEL: la conversione in 8.1 scarta il livello di miglioramento, colori e luminosità possono differire un po' dall'originale. Il Remux lo conserva."))
+	}
 	if info.DVProfile == 5 {
 		out.Warnings = append(out.Warnings, T("Dolby Vision profilo 5: il base layer non è HDR10, un encode avrà colori sbagliati (verde/viola). Usa il Remux o salta il file."))
 	}
@@ -458,7 +461,7 @@ func cmdRun(ctx context.Context, path string) int {
 			totIn += rc.In
 			totOut += rc.Out
 			emit("job_done", with(done, "status", "ok", "in_bytes", rc.In, "out_bytes", rc.Out,
-				"estimated", rc.Estimated, "speed", rc.Speed, "avg_fps", rc.AvgFPS))
+				"estimated", rc.Estimated, "speed", rc.Speed, "avg_fps", rc.AvgFPS, "checks", nonNilChecks(r.Checks)))
 		default:
 			failCount++
 			emit("job_done", with(done, "status", "fail", "error", T("terminato senza conferma di completamento")))
@@ -473,6 +476,14 @@ func cmdRun(ctx context.Context, path string) int {
 		return 130
 	}
 	return 0
+}
+
+// Lista sempre presente: null farebbe fallire la decodifica nell'app
+func nonNilChecks(c []testCheck) []testCheck {
+	if c == nil {
+		return []testCheck{}
+	}
+	return c
 }
 
 // ---------- bench ----------
