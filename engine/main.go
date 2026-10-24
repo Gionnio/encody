@@ -1120,6 +1120,7 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 
 		cmd = append(cmd, encodeVideoArgs(job)...)
 		cmd = append(cmd, buildAudioArgs(job)...)
+		cmd = append(cmd, signatureFFmpegArgs(signatureTags(job))...)
 		cmd = append(cmd, job.OutputPath)
 
 		if _, err := runFFmpegPiped(ctx, cmd, ch, "Encoding", dur); err != nil {
@@ -1221,9 +1222,17 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 
 		report("Muxing")
 		muxArgs := append([]string{"--default-duration", "0:" + job.FPSStr + "p", "-o", job.OutputPath}, hdrMuxArgs(job, 0)...)
+		if tags := signatureTags(job); tags != nil {
+			tagFile, err := writeSignatureXML(workDir, tags)
+			if err != nil {
+				return err
+			}
+			muxArgs = append(muxArgs, "--global-tags", tagFile)
+		}
 		muxArgs = append(muxArgs, injVid)
 		if tmpAudio != "" {
-			muxArgs = append(muxArgs, tmpAudio)
+			// i tag globali della sorgente (anche una vecchia firma) non passano: vale solo quella nuova
+			muxArgs = append(muxArgs, "--no-global-tags", tmpAudio)
 		}
 		warn, err := runMkvmerge(ctx, muxArgs...)
 		if err != nil {

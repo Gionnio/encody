@@ -46,6 +46,8 @@ enum Engine {
         env["PATH"] = paths.joined(separator: ":")
         // messaggi del motore nella stessa lingua dell'app
         env["ENCODY_LANG"] = Bundle.main.preferredLocalizations.first == "en" ? "en" : "it"
+        // firma ENCODY_* nei file finiti, spegnibile dalle Impostazioni
+        if UserDefaults.standard.object(forKey: "signOutputs") as? Bool == false { env["ENCODY_SIGNATURE"] = "0" }
         return env
     }
 

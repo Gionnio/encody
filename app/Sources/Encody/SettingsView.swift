@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("appTheme") private var appTheme: AppTheme = .system
     @AppStorage("notifyQueueDone") private var notifyQueueDone = true
     @AppStorage("analyzeGrain") private var analyzeGrain = true
+    @AppStorage("signOutputs") private var signOutputs = true
     @AppStorage("dockStyle") private var dockStyle: DockStyle = .percent
     @State private var installer = CVVDPInstaller()
 
@@ -67,6 +68,10 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                         Button("Scegli…") { model.chooseOutputDir() }
                     }
+                }
+                Toggle(isOn: $signOutputs) {
+                    Text("Firma i file prodotti")
+                    Text("Aggiunge ai file finiti i tag ENCODY_* (versione, preset e impronta del preset), così un media server riconosce i file fatti con Encody.")
                 }
             }
 

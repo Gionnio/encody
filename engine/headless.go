@@ -109,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset", "profile":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B | profile export")
 		return 0, true
 	default:
 		return 0, false
@@ -124,6 +124,9 @@ func headlessMain(args []string) (int, bool) {
 
 	if cmd == "preset" {
 		return cmdPreset(ctx, args[1:]), true // ha un sottocomando prima dei flag
+	}
+	if cmd == "profile" {
+		return cmdProfile(args[1:]), true
 	}
 
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
@@ -302,7 +305,7 @@ func cmdProbe(path string) int {
 		case "audio":
 			t := trackOut{Index: s.Index, Display: prettyCodec(s.CodecName, s.Profile), Layout: layoutOf(toSel(s)),
 				BitRate: s.BitRate, Frames: s.Frames, Sel: toSel(s)}
-			if s.Lang == "ita" || s.Lang == "it" {
+			if isPreferredLang(s.Lang) {
 				t.Suggested = true
 				anySuggested = true
 			}
@@ -310,7 +313,7 @@ func cmdProbe(path string) int {
 		case "subtitle":
 			t := trackOut{Index: s.Index, Display: prettyCodec(s.CodecName, ""), BitRate: s.BitRate, Frames: s.Frames,
 				ImageBased: s.CodecName == "hdmv_pgs_subtitle" || s.CodecName == "dvd_subtitle", Sel: toSel(s)}
-			t.Suggested = (s.Lang == "ita" || s.Lang == "it") && s.Forced
+			t.Suggested = isPreferredLang(s.Lang) && s.Forced
 			out.Subs = append(out.Subs, t)
 		}
 	}

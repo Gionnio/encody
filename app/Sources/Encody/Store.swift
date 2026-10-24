@@ -532,6 +532,22 @@ final class AppModel {
         }
     }
 
+    /// Preset e regole di Encody in un JSON, per un media server che dà un voto ai file della libreria
+    func exportProfile() {
+        Task {
+            do {
+                let data = try await Engine.runJSON(["profile", "export"])
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.json]
+                panel.nameFieldStringValue = "encody-profile.json"
+                guard panel.runModal() == .OK, let url = panel.url else { return }
+                try data.write(to: url)
+            } catch {
+                queueError = String(localized: "Esportazione fallita: \(error.localizedDescription)")
+            }
+        }
+    }
+
     /// Compatibile con le code esportate dalla CLI
     func importQueue() {
         let panel = NSOpenPanel()
@@ -540,6 +556,12 @@ final class AppModel {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let specs = try JSONCoding.decoder.decode([JobSpec].self, from: Data(contentsOf: url))
+            let missing = specs.filter { !FileManager.default.fileExists(atPath: $0.inputPath) }
+            if !missing.isEmpty {
+                let names = missing.prefix(3).map { URL(fileURLWithPath: $0.inputPath).lastPathComponent }.joined(separator: ", ")
+                let more = missing.count > 3 ? "…" : ""
+                queueError = String(localized: "File della coda non trovati (\(missing.count)): \(names)\(more). Controlla che il disco o il NAS sia collegato.")
+            }
             for s in specs {
                 add(urls: [URL(fileURLWithPath: s.inputPath)], presetID: s.preset.id.isEmpty ? nil : s.preset.id, apply: s)
             }
