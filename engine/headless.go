@@ -109,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset", "profile":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B | profile export")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
 		return 0, true
 	default:
 		return 0, false
@@ -124,9 +124,6 @@ func headlessMain(args []string) (int, bool) {
 
 	if cmd == "preset" {
 		return cmdPreset(ctx, args[1:]), true // ha un sottocomando prima dei flag
-	}
-	if cmd == "profile" {
-		return cmdProfile(args[1:]), true
 	}
 
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
@@ -668,4 +665,16 @@ func availableEncoders() []EncoderCap {
 		}
 	}
 	return out
+}
+
+// Lingua preferita per audio e sottotitoli forzati: probe la usa per suggerire le tracce
+var preferredLangs = []string{"ita", "it"}
+
+func isPreferredLang(l string) bool {
+	for _, p := range preferredLangs {
+		if l == p {
+			return true
+		}
+	}
+	return false
 }

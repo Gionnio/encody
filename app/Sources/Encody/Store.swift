@@ -532,22 +532,6 @@ final class AppModel {
         }
     }
 
-    /// Preset e regole di Encody in un JSON, per un media server che dà un voto ai file della libreria
-    func exportProfile() {
-        Task {
-            do {
-                let data = try await Engine.runJSON(["profile", "export"])
-                let panel = NSSavePanel()
-                panel.allowedContentTypes = [.json]
-                panel.nameFieldStringValue = "encody-profile.json"
-                guard panel.runModal() == .OK, let url = panel.url else { return }
-                try data.write(to: url)
-            } catch {
-                queueError = String(localized: "Esportazione fallita: \(error.localizedDescription)")
-            }
-        }
-    }
-
     /// Compatibile con le code esportate dalla CLI
     func importQueue() {
         let panel = NSOpenPanel()

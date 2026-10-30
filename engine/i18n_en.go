@@ -256,5 +256,4 @@ var enStrings = map[string]string{
 	"⚠️  Poco spazio sul disco di destinazione (%s liberi): il file potrebbe non starci.":               "⚠️  Low space on the destination disk (%s free): the file may not fit.",
 	"⚠️  Poco spazio per i file temporanei dell'inject (servono circa %s): il lavoro potrebbe fallire.": "⚠️  Low space for the inject temporary files (about %s needed): the job may fail.",
 	"Dolby Vision profilo 7 con FEL: la conversione in 8.1 scarta il livello di miglioramento, colori e luminosità possono differire un po' dall'originale. Il Remux lo conserva.": "Dolby Vision profile 7 with FEL: converting to 8.1 drops the enhancement layer, so colours and brightness may differ slightly from the original. Remux keeps it.",
-	"uso: encody profile export": "usage: encody profile export",
 }

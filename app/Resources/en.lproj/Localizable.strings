@@ -356,7 +356,4 @@
 "Su TV molto luminose la differenza è minima; su TV meno luminose le scene chiare possono perdere un po' di dettaglio. Più veloce." = "On very bright TVs the difference is minimal; on dimmer TVs bright scenes can lose some detail. Faster.";
 "Originale (reference)" = "Original (reference)";
 "Encodato" = "Encoded";
-"Firma i file prodotti" = "Sign output files";
-"Aggiunge ai file finiti i tag ENCODY_* (versione, preset e impronta del preset), così un media server riconosce i file fatti con Encody." = "Adds ENCODY_* tags to finished files (version, preset and preset fingerprint), so a media server can recognise files made with Encody.";
-"Esporta profilo di conformità…" = "Export Conformity Profile…";
 "File della coda non trovati (%lld): %@%@. Controlla che il disco o il NAS sia collegato." = "Queue files not found (%lld): %@%@. Check that the disk or NAS is connected.";

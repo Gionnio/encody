@@ -21,8 +21,6 @@
 - **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check (kept by default for new files, switchable to HDR10 only), also with crop and downscaling (Dolby Vision letterbox metadata is recomputed); optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
-- **File Signature:** finished files carry `ENCODY_*` Matroska tags (engine version, preset, preset fingerprint, date), so a media server can tell which files Encody made and with which preset. Can be turned off in Settings.
-- **Conformity Profile:** File → Export Conformity Profile… (or `encody profile export`) writes the presets, their fingerprints and Encody's track and HDR rules as versioned JSON, for tools that grade a library against your presets.
 - **Output Check:** every finished file is read back (duration, decoding of start and end, HDR10 / Dolby Vision / HDR10+ metadata, tracks); truncated files fail, missing metadata is flagged.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
 - **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, notifications.
@@ -129,7 +127,6 @@ The app contains no encoding logic: it runs the engine headless and reads its JS
 | `encody run [--test] <queue.json>` | NDJSON: queue_start, job_start, step, progress, info, job_done, queue_done |
 | `encody segments <file>` | NDJSON: step, progress, segments (start, luma, bitrate, thumbnail); cached in `~/Library/Caches/Encody` |
 | `encody preset validate [--spec f.json] < preset.json` | issues and an example FFmpeg command |
-| `encody profile export` | presets with fingerprints and conformity rules (JSON) |
 | `encody preset test [--sample file] [--spec f.json]` | NDJSON: step, preset_test (checks, fps, bitrate) |
 | `encody grain <file>` | `{"index": 2.82, "level": "high", "points": 15}` (cached) |
 | `encody thumb --at T <file>` | `{"thumb": "…jpg"}` for a sample starting at T seconds |

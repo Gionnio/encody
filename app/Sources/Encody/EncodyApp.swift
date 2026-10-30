@@ -32,8 +32,6 @@ struct EncodyApp: App {
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                 Button("Esporta coda…") { model.exportQueue() }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
-                Divider()
-                Button("Esporta profilo di conformità…") { model.exportProfile() }
             }
         }
 
