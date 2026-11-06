@@ -313,6 +313,12 @@ struct EngineEvent: Decodable, Sendable {
     let segments: [BenchSegmentInfo]?
     let segmentSeconds: Double?
     let duration: Double?
+    // dvfix: Dolby Vision profilo 7 senza livello di miglioramento
+    let path: String?
+    let size: Int64?
+    let found: Int?
+    let scanned: Int?
+    let original: String?
     // prova dei preset
     let passed: Bool?
     let checks: [PresetTestCheck]?

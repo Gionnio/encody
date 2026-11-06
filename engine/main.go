@@ -157,6 +157,7 @@ type Job struct {
 	Duration   float64    `json:"duration"`
 	FPSStr     string     `json:"fps_str"`
 	SkipVerify bool       `json:"-"` // benchmark: niente verifica finale sugli spezzoni
+	DVTo81     bool       `json:"-"` // remux di un DV profilo 7 senza livello di miglioramento: RPU convertito in 8.1
 }
 
 type TrackSel struct {
@@ -417,7 +418,8 @@ func sortedPresetKeys(includeCopy bool) []string {
 // ==========================================
 
 type MediaInfo struct {
-	Duration   float64
+	Duration   float64 // del contenitore: conta anche audio e sottotitoli
+	VideoDur   float64 // del flusso video, 0 se il file non la dichiara
 	FPSStr     string
 	Width      int
 	Height     int
@@ -472,6 +474,7 @@ func probeFile(path string) (*MediaInfo, error) {
 			Width         int               `json:"width"`
 			Height        int               `json:"height"`
 			AvgFPS        string            `json:"avg_frame_rate"`
+			Duration      string            `json:"duration"`
 			Channels      int               `json:"channels"`
 			ChannelLayout string            `json:"channel_layout"`
 			BitRate       string            `json:"bit_rate"`
@@ -519,6 +522,7 @@ func probeFile(path string) (*MediaInfo, error) {
 		}
 		info.VideoIndex = s.Index
 		info.Width, info.Height = s.Width, s.Height
+		info.VideoDur = streamDuration(s.Duration, tagAny(s.Tags, "DURATION", "DURATION-eng"))
 		if s.AvgFPS != "" && s.AvgFPS != "0/0" {
 			info.FPSStr = s.AvgFPS
 		}
@@ -555,6 +559,27 @@ func probeFile(path string) (*MediaInfo, error) {
 		info.VideoIndex = 0
 	}
 	return info, nil
+}
+
+// Durata di un flusso: campo duration (MP4) o tag DURATION "HH:MM:SS.nnnnnnnnn" (MKV)
+func streamDuration(field, tag string) float64 {
+	if d, err := strconv.ParseFloat(field, 64); err == nil && d > 0 {
+		return d
+	}
+	var h, m int
+	var sec float64
+	if _, err := fmt.Sscanf(tag, "%d:%d:%f", &h, &m, &sec); err == nil {
+		return float64(h*3600+m*60) + sec
+	}
+	return 0
+}
+
+// Durata del video se nota, altrimenti del contenitore
+func (m *MediaInfo) videoDuration() float64 {
+	if m.VideoDur > 0 {
+		return m.VideoDur
+	}
+	return m.Duration
 }
 
 // HDR10+ è un SEI per-frame: va letto dal primo frame, non dallo stream
@@ -1087,7 +1112,15 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		job.DoInject = false
 	}
 
-	sc, err := checkSpace(job, job.DoInject)
+	// Remux di un Dolby Vision profilo 7 senza livello di miglioramento: non c'è niente da conservare
+	// e molti lettori non decodificano il profilo 7, quindi l'RPU diventa 8.1 senza ricodificare
+	if job.Preset.Type == "copy" && job.MetaType == "DV" && job.DVProfile == 7 {
+		if p7 := probeDVP7(job.InputPath); p7.Checked && !p7.HasEL {
+			job.DVTo81 = true
+		}
+	}
+
+	sc, err := checkSpace(job, job.DoInject || job.DVTo81)
 	if err != nil {
 		return err
 	}
@@ -1110,7 +1143,26 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		return errors.New(T("tonemap richiesto ma FFmpeg non ha zscale"))
 	}
 
-	if !job.DoInject {
+	if job.DVTo81 {
+		// 0. REMUX CON RPU 8.1: stesso bitstream, cambia solo l'RPU
+		if Tools.DoviTool == "" || Tools.MkvMerge == "" {
+			return errors.New(T("per convertire il Dolby Vision profilo 7 in 8.1 servono dovi_tool e mkvmerge"))
+		}
+		info(T("Dolby Vision profilo 7 senza livello di miglioramento: l'RPU viene convertito in 8.1 (stesso video)."))
+		tmpAudio, err := extractTracks(ctx, job, workDir, ch, dur)
+		if err != nil {
+			return err
+		}
+		report(T("Conversione DV 8.1"))
+		vid := filepath.Join(workDir, "video81.hevc")
+		if err := convertDVTo81(ctx, job.InputPath, videoMap(job), vid, ch, dur); err != nil {
+			return err
+		}
+		report("Muxing")
+		if err := muxVideoTracks(ctx, job, vid, tmpAudio, info); err != nil {
+			return err
+		}
+	} else if !job.DoInject {
 		// 1. FAST PATH
 		report("Encoding")
 		cmd := []string{"-y", "-i", job.InputPath}
@@ -1145,20 +1197,9 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 			srcIn = []string{"-r", job.FPSStr} // l'HEVC raw non ha timestamp
 		}
 
-		// Senza tracce audio né sottotitoli FFmpeg non crea il file: si muxa solo il video
-		var tmpAudio string
-		if len(job.SelAudio)+len(job.SelSubs) > 0 {
-			report(T("Audio Extract"))
-			tmpAudio = filepath.Join(workDir, "audio.mkv")
-			cmdAud := []string{"-y", "-i", job.InputPath, "-vn"}
-			if TestModeActive {
-				cmdAud = append(cmdAud, "-t", TestDuration)
-			}
-			cmdAud = append(cmdAud, buildAudioArgs(job)...)
-			cmdAud = append(cmdAud, tmpAudio)
-			if _, err := runFFmpegPiped(ctx, cmdAud, ch, "Audio Extract", dur); err != nil {
-				return err
-			}
+		tmpAudio, err := extractTracks(ctx, job, workDir, ch, dur)
+		if err != nil {
+			return err
 		}
 
 		report(T("Meta Extract"))
@@ -1220,18 +1261,8 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		os.Remove(rawVid) // libera spazio prima del mux
 
 		report("Muxing")
-		muxArgs := append([]string{"--default-duration", "0:" + job.FPSStr + "p", "-o", job.OutputPath}, hdrMuxArgs(job, 0)...)
-		muxArgs = append(muxArgs, injVid)
-		if tmpAudio != "" {
-			// i tag globali della sorgente non passano (per esempio una vecchia firma ENCODY_*)
-			muxArgs = append(muxArgs, "--no-global-tags", tmpAudio)
-		}
-		warn, err := runMkvmerge(ctx, muxArgs...)
-		if err != nil {
+		if err := muxVideoTracks(ctx, job, injVid, tmpAudio, info); err != nil {
 			return err
-		}
-		if warn != "" {
-			info(T("⚠️  mkvmerge ha emesso dei warning (file comunque valido):\n") + warn)
 		}
 	}
 
@@ -1246,6 +1277,44 @@ func runEncoder(ctx context.Context, job Job, ch chan<- ProgressUpdate) (err err
 		}
 	}
 	ch <- ProgressUpdate{Percent: 100, Step: "Done", Done: true, Checks: checks}
+	return nil
+}
+
+// Tracce audio e sottotitoli scelte, in un MKV a parte per il mux con mkvmerge. Senza tracce FFmpeg
+// non crea il file: si muxa solo il video ("" senza errore).
+func extractTracks(ctx context.Context, job Job, workDir string, ch chan<- ProgressUpdate, dur float64) (string, error) {
+	if len(job.SelAudio)+len(job.SelSubs) == 0 {
+		return "", nil
+	}
+	ch <- ProgressUpdate{Step: T("Audio Extract")}
+	tmpAudio := filepath.Join(workDir, "audio.mkv")
+	cmdAud := []string{"-y", "-i", job.InputPath, "-vn"}
+	if TestModeActive {
+		cmdAud = append(cmdAud, "-t", TestDuration)
+	}
+	cmdAud = append(cmdAud, buildAudioArgs(job)...)
+	cmdAud = append(cmdAud, tmpAudio)
+	if _, err := runFFmpegPiped(ctx, cmdAud, ch, "Audio Extract", dur); err != nil {
+		return "", err
+	}
+	return tmpAudio, nil
+}
+
+// Video HEVC grezzo + tracce estratte → output MKV, con tag colore e metadati HDR10 della sorgente
+func muxVideoTracks(ctx context.Context, job Job, video, tracks string, info func(string)) error {
+	muxArgs := append([]string{"--default-duration", "0:" + job.FPSStr + "p", "-o", job.OutputPath}, hdrMuxArgs(job, 0)...)
+	muxArgs = append(muxArgs, video)
+	if tracks != "" {
+		// i tag globali della sorgente non passano (per esempio una vecchia firma ENCODY_*)
+		muxArgs = append(muxArgs, "--no-global-tags", tracks)
+	}
+	warn, err := runMkvmerge(ctx, muxArgs...)
+	if err != nil {
+		return err
+	}
+	if warn != "" {
+		info(T("⚠️  mkvmerge ha emesso dei warning (file comunque valido):\n") + warn)
+	}
 	return nil
 }
 

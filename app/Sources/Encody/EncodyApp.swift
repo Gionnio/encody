@@ -32,8 +32,17 @@ struct EncodyApp: App {
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                 Button("Esporta coda…") { model.exportQueue() }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+                Divider()
+                OpenDVFixButton()
             }
         }
+
+        Window("Dolby Vision profilo 7", id: "dvfix") {
+            DVFixView()
+                .tint(.encody)
+                .preferredColorScheme(appTheme.colorScheme)
+        }
+        .windowResizability(.contentMinSize)
 
         Settings {
             SettingsView()
@@ -178,5 +187,13 @@ struct EngineStatusView: View {
         if !c.hasVmaf { m.append("libvmaf") }
         if c.hasXpsnr == false { m.append("xpsnr") }
         return m
+    }
+}
+
+/// Voce di menu per lo strumento della libreria (openWindow serve dentro una vista)
+private struct OpenDVFixButton: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button("Correggi Dolby Vision profilo 7…") { openWindow(id: "dvfix") }
     }
 }

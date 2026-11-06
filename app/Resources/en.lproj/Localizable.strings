@@ -357,3 +357,20 @@
 "Originale (reference)" = "Original (reference)";
 "Encodato" = "Encoded";
 "File della coda non trovati (%lld): %@%@. Controlla che il disco o il NAS sia collegato." = "Queue files not found (%lld): %@%@. Check that the disk or NAS is connected.";
+
+/* Dolby Vision profilo 7 senza livello di miglioramento */
+"Correggi Dolby Vision profilo 7…" = "Fix Dolby Vision Profile 7…";
+"Dolby Vision profilo 7" = "Dolby Vision Profile 7";
+"Dolby Vision profilo 7 senza livello di miglioramento" = "Dolby Vision profile 7 without an enhancement layer";
+"Alcuni file dichiarano il profilo 7 ma non contengono il secondo strato: Fire TV, TV Sony e altri lettori non li riproducono. Encody li cerca in una cartella e li converte in 8.1 senza ricodificare, con le stesse tracce. Gli originali vanno nella cartella nascosta \".encody-originali\"." = "Some files declare profile 7 but don't contain the second layer: Fire TV, Sony TVs and other players can't play them. Encody finds them in a folder and converts them to 8.1 without re-encoding, keeping every track. The originals go to the hidden \".encody-originali\" folder.";
+"Nessuna cartella scelta" = "No folder chosen";
+"Scegli cartella…" = "Choose Folder…";
+"Scegli" = "Choose";
+"Ricerca dei file…" = "Searching files…";
+"Nessun file da correggere (%lld MKV controllati)." = "Nothing to fix (%lld MKV files checked).";
+"Scegli una cartella della libreria." = "Choose a library folder.";
+"%lld file su %lld MKV controllati" = "%lld files out of %lld MKV checked";
+"Cerca di nuovo" = "Search Again";
+"Correggi %lld file" = "Fix %lld Files";
+"Convertito in 8.1 · %@" = "Converted to 8.1 · %@";
+"Interrotto: originale invariato" = "Stopped: original unchanged";

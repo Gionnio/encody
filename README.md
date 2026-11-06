@@ -21,6 +21,7 @@
 - **Film Grain Detection:** Each file gets a grain index (noise left in the flattest midtone blocks after a high-pass, measured on 15 full-resolution frames). Medium/high grain shows a badge, suggests the grain preset and adds it to the benchmark.
 - **HDR Aware:** HDR10, HDR10+, HLG and Dolby Vision detection; dynamic metadata re-injected with `dovi_tool` / `hdr10plus_tool` after a frame-count check (kept by default for new files, switchable to HDR10 only), also with crop and downscaling (Dolby Vision letterbox metadata is recomputed); optional real HDR→SDR tonemapping (zscale).
 - **Track Selection:** Per-file audio and subtitle choice with suggestions (Italian forced subtitles, default flags), audio modes **Pass**, **E-AC3 Smart** (downmix 7.1→5.1 when needed) and **Stereo AAC**.
+- **Dolby Vision Profile 7 Fix:** Finds files that declare Dolby Vision profile 7 but contain no enhancement layer (many players, such as Fire TV and Sony TVs, can't play them) and converts them to profile 8.1 without re-encoding, keeping every other track; the originals are kept in a hidden `.encody-originali` folder. Remux converts such files to 8.1 automatically.
 - **Output Check:** every finished file is read back (duration, decoding of start and end, HDR10 / Dolby Vision / HDR10+ metadata, tracks); truncated files fail, missing metadata is flagged.
 - **Auto Crop & Test Mode:** Black-bar detection and a 5-minute test encode before committing to a whole file.
 - **Savings Recap:** Size before/after per file and per queue, speed and elapsed time, notifications.
@@ -129,6 +130,7 @@ The app contains no encoding logic: it runs the engine headless and reads its JS
 | `encody preset validate [--spec f.json] < preset.json` | issues and an example FFmpeg command |
 | `encody preset test [--sample file] [--spec f.json]` | NDJSON: step, preset_test (checks, fps, bitrate) |
 | `encody grain <file>` | `{"index": 2.82, "level": "high", "points": 15}` (cached) |
+| `encody dvfix [--apply] <folder or file>…` | NDJSON: profile 7 files without enhancement layer (dvfix_found, dvfix_scan); with `--apply` converts them to 8.1 in place (dvfix_done, dvfix_end) |
 | `encody thumb --at T <file>` | `{"thumb": "…jpg"}` for a sample starting at T seconds |
 | `encody bench --presets 1,3 [--metric auto\|vmaf\|xpsnr\|cvvdp] [--segments t1,t2,t3] <file>` | NDJSON: bench_start, bench_preset_start, progress, bench_result, bench_done |
 | `encody quality --metric vmaf\|ssim\|xpsnr\|cvvdp --ref A --dist B` | NDJSON: step, progress, quality_result |

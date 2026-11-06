@@ -89,22 +89,78 @@ func adjustActiveArea(ctx context.Context, job Job, rpu, dir string) (string, er
 	return edited, nil
 }
 
-// Tipo di enhancement layer di un Dolby Vision profilo 7 ("FEL", "MEL" o "" se non si sa), dall'RPU
-// dei primi secondi. Il FEL contiene dati d'immagine veri: la conversione in 8.1 lo scarta.
-func dvELType(path string) string {
-	if Tools.DoviTool == "" {
-		return ""
+// Dolby Vision profilo 7: c'è davvero il livello di miglioramento (EL)?
+//
+// Un file può dichiarare il profilo 7 (dvcC e RPU) senza contenere l'EL: vecchie ricodifiche che hanno
+// tenuto l'RPU e scartato il secondo strato. Lettori senza decoder P7 (Fire TV, TV Sony) non li
+// riproducono, e non c'è niente da conservare: l'RPU va convertito in 8.1. Si guardano i primi secondi
+// del flusso: l'RPU sta nelle unità NAL di tipo 62, l'EL nelle unità di tipo 63; un EL in una traccia
+// video separata (doppia traccia) conta come presente.
+type dvP7 struct {
+	Checked bool   // analisi riuscita
+	HasEL   bool   // livello di miglioramento presente
+	ELType  string // "FEL", "MEL" o "" secondo l'RPU
+}
+
+func probeDVP7(path string) dvP7 {
+	var r dvP7
+	if info, err := probeFile(path); err == nil {
+		videos := 0
+		for _, s := range info.Streams {
+			if s.CodecType == "video" && s.CodecName == "hevc" {
+				videos++
+			}
+		}
+		if videos > 1 {
+			r.HasEL = true // EL in una traccia a parte
+		}
 	}
 	dir, err := os.MkdirTemp("", "enc_dvel")
 	if err != nil {
-		return ""
+		return r
 	}
 	defer os.RemoveAll(dir)
-	hevc, rpu := filepath.Join(dir, "head.hevc"), filepath.Join(dir, "head.rpu")
+	hevc := filepath.Join(dir, "head.hevc")
 	if exec.Command(Tools.FFmpeg, "-hide_banner", "-nostdin", "-v", "error", "-y", "-i", path, "-map", "0:v:0", "-t", "2",
 		"-c:v", "copy", "-bsf:v", "hevc_mp4toannexb", "-f", "hevc", hevc).Run() != nil {
+		return r
+	}
+	data, err := os.ReadFile(hevc)
+	if err != nil {
+		return r
+	}
+	rpu, el := nalCounts(data)
+	if rpu == 0 {
+		return r // nessun RPU: non è Dolby Vision nel flusso, meglio non decidere
+	}
+	r.Checked = true
+	r.HasEL = r.HasEL || el > 0
+	r.ELType = dvELType(dir, hevc)
+	return r
+}
+
+// Unità NAL HEVC di tipo 62 (RPU Dolby Vision) e 63 (livello di miglioramento) in un flusso Annex B
+func nalCounts(b []byte) (rpu, el int) {
+	for i := 0; i+3 < len(b); i++ {
+		if b[i] == 0 && b[i+1] == 0 && b[i+2] == 1 {
+			switch (b[i+3] >> 1) & 0x3f {
+			case 62:
+				rpu++
+			case 63:
+				el++
+			}
+			i += 2
+		}
+	}
+	return
+}
+
+// Tipo di EL secondo l'RPU ("FEL", "MEL" o "")
+func dvELType(dir, hevc string) string {
+	if Tools.DoviTool == "" {
 		return ""
 	}
+	rpu := filepath.Join(dir, "head.rpu")
 	if exec.Command(Tools.DoviTool, "extract-rpu", hevc, "-o", rpu).Run() != nil {
 		return ""
 	}
@@ -123,4 +179,19 @@ func dvELType(path string) string {
 		}
 	}
 	return ""
+}
+
+// Video del file → HEVC grezzo con l'RPU convertito in 8.1 (stesso bitstream, EL scartato)
+func convertDVTo81(ctx context.Context, src, vmap, out string, ch chan<- ProgressUpdate, dur float64) error {
+	raw := out + ".src.hevc"
+	defer os.Remove(raw)
+	args := []string{"-y", "-i", src}
+	if TestModeActive {
+		args = append(args, "-t", TestDuration)
+	}
+	args = append(args, "-map", vmap, "-c:v", "copy", "-bsf:v", "hevc_mp4toannexb", "-f", "hevc", raw)
+	if _, err := runFFmpegPiped(ctx, args, ch, T("Conversione DV 8.1"), dur); err != nil {
+		return err
+	}
+	return runTool(ctx, "dovi_tool", Tools.DoviTool, "-m", "2", "convert", "--discard", raw, "-o", out)
 }

@@ -217,15 +217,33 @@ func makeHDRTestClip(ctx context.Context, dir string) (string, error) {
 
 type sideData struct{ Mastering, CLL bool }
 
-// Metadati HDR10 statici del primo frame
+// Metadati HDR10 statici del primo frame. MaxCLL a 0 vuol dire "non noto": non conta come presente.
 func frameSideData(path string) sideData {
 	out, err := exec.Command(Tools.FFprobe, "-v", "error", "-select_streams", "v:0", "-read_intervals", "%+#1",
 		"-show_frames", "-show_entries", "frame=side_data_list", "-of", "json", path).Output()
 	if err != nil {
 		return sideData{}
 	}
-	s := string(out)
-	return sideData{Mastering: strings.Contains(s, "Mastering display metadata"), CLL: strings.Contains(s, "Content light level metadata")}
+	var r struct {
+		Frames []struct {
+			SideData []map[string]any `json:"side_data_list"`
+		} `json:"frames"`
+	}
+	var sd sideData
+	if json.Unmarshal(out, &r) != nil || len(r.Frames) == 0 {
+		return sd
+	}
+	for _, d := range r.Frames[0].SideData {
+		switch d["side_data_type"] {
+		case "Mastering display metadata":
+			sd.Mastering = true
+		case "Content light level metadata":
+			if v, ok := ratio(d["max_content"]); ok && v > 0 {
+				sd.CLL = true
+			}
+		}
+	}
+	return sd
 }
 
 func streamProps(path string) (codec, profile, pixFmt string) {

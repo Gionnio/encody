@@ -109,9 +109,9 @@ func eventProgress(extra map[string]any) func(ProgressUpdate) {
 func headlessMain(args []string) (int, bool) {
 	cmd := args[0]
 	switch cmd {
-	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset":
+	case "caps", "probe", "crop", "plan", "run", "bench", "quality", "segments", "thumb", "grain", "preset", "dvfix":
 	case "help", "-h", "--help":
-		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B")
+		fmt.Println("Comandi headless: caps | probe <file> | crop <file> | plan < coda.json | run [--test] <coda.json> | bench --presets 1,3 [--metric auto|vmaf|xpsnr|cvvdp] [--segments t1,t2,t3] <file> | segments <file> | thumb --at T <file> | grain <file> | preset validate|test [--sample file] < preset.json | quality --metric vmaf|ssim|xpsnr|cvvdp --ref A --dist B | dvfix [--apply] <cartella o file>...")
 		return 0, true
 	default:
 		return 0, false
@@ -135,6 +135,7 @@ func headlessMain(args []string) (int, bool) {
 	dist := fs.String("dist", "", "")
 	segList := fs.String("segments", "", "") // inizi in secondi, separati da virgola
 	at := fs.Float64("at", -1, "")
+	apply := fs.Bool("apply", false, "") // dvfix: corregge invece di elencare
 	if err := fs.Parse(args[1:]); err != nil {
 		return fail(fmt.Errorf(T("argomenti non validi: %w"), err)), true
 	}
@@ -194,6 +195,11 @@ func headlessMain(args []string) (int, bool) {
 			return fail(err), true
 		}
 		return cmdThumb(ctx, f, *at), true
+	case "dvfix":
+		if len(pos) == 0 {
+			return failEvent(errors.New(T("percorso file mancante"))), true
+		}
+		return cmdDVFix(ctx, pos, *apply), true
 	case "quality":
 		m := strings.ToLower(*metric)
 		if m == "" {
@@ -317,8 +323,13 @@ func cmdProbe(path string) int {
 	if !anySuggested && len(out.Audio) > 0 {
 		out.Audio[0].Suggested = true
 	}
-	if info.DVProfile == 7 && dvELType(path) == "FEL" {
-		out.Warnings = append(out.Warnings, T("Dolby Vision profilo 7 con FEL: la conversione in 8.1 scarta il livello di miglioramento, colori e luminosità possono differire un po' dall'originale. Il Remux lo conserva."))
+	if info.DVProfile == 7 && info.MetaType == "DV" {
+		switch p7 := probeDVP7(path); {
+		case p7.Checked && !p7.HasEL:
+			out.Warnings = append(out.Warnings, T("Dolby Vision profilo 7 senza livello di miglioramento: molti lettori (Fire TV, TV Sony) non lo riproducono. Il Remux lo converte in 8.1 senza ricodificare."))
+		case p7.HasEL && p7.ELType == "FEL":
+			out.Warnings = append(out.Warnings, T("Dolby Vision profilo 7 con FEL: la conversione in 8.1 scarta il livello di miglioramento, colori e luminosità possono differire un po' dall'originale. Il Remux lo conserva."))
+		}
 	}
 	if info.DVProfile == 5 {
 		out.Warnings = append(out.Warnings, T("Dolby Vision profilo 5: il base layer non è HDR10, un encode avrà colori sbagliati (verde/viola). Usa il Remux o salta il file."))

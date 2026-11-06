@@ -32,19 +32,25 @@ func verifyOutput(ctx context.Context, job Job, expectDur float64) ([]testCheck,
 		return nil, fmt.Errorf(T("sorgente illeggibile per la verifica: %w"), err)
 	}
 
-	// 1. durata: un file troncato è l'errore più comune di un encode interrotto male
-	if expectDur > 0 {
-		tol := math.Max(2, expectDur*0.01)
-		if diff := math.Abs(out.Duration - expectDur); diff > tol {
-			return nil, fmt.Errorf(T("durata %s invece di %s: il file sembra incompleto"),
-				fmtDur(secDur(out.Duration)), fmtDur(secDur(expectDur)))
+	// 1. durata del video: un file troncato è l'errore più comune di un encode interrotto male.
+	// Si confrontano i flussi video, non i contenitori: sottotitoli o audio più lunghi del video
+	// allungano il contenitore della sorgente ma non quello di un'uscita che li scarta.
+	outDur := out.videoDuration()
+	if want := src.videoDuration(); expectDur > 0 || want > 0 {
+		if expectDur > 0 && (want <= 0 || expectDur < want) {
+			want = expectDur // modalità test: solo i primi minuti
 		}
-		add("ok", fmt.Sprintf(T("Durata %s"), fmtDur(secDur(out.Duration))), "")
+		tol := math.Max(2, want*0.01)
+		if diff := math.Abs(outDur - want); diff > tol {
+			return nil, fmt.Errorf(T("durata %s invece di %s: il file sembra incompleto"),
+				fmtDur(secDur(outDur)), fmtDur(secDur(want)))
+		}
+		add("ok", fmt.Sprintf(T("Durata %s"), fmtDur(secDur(outDur))), "")
 	}
 
 	// 2. decodifica dell'inizio e della fine: la durata nell'intestazione può essere giusta anche
 	// in un file troncato, i frame alla fine no
-	for _, at := range []float64{0, math.Max(0, out.Duration-verifyDecodeSeconds-1)} {
+	for _, at := range []float64{0, math.Max(0, outDur-verifyDecodeSeconds-1)} {
 		frames, msg, err := decodeWindow(ctx, job.OutputPath, at)
 		switch {
 		case ctx.Err() != nil:
@@ -101,6 +107,8 @@ func verifyOutput(ctx context.Context, job Job, expectDur float64) ([]testCheck,
 			switch {
 			case out.MetaType != src.MetaType:
 				add("warning", fmt.Sprintf(T("%s perso"), src.MetaType), fmt.Sprintf(T("l'output risulta %s"), out.MetaType))
+			case src.MetaType == "DV" && (job.DoInject || job.DVTo81) && out.DVProfile != 8:
+				add("warning", fmt.Sprintf(T("Dolby Vision profilo %d invece di 8.1"), out.DVProfile), T("molti lettori non decodificano il profilo 7"))
 			case src.MetaType == "DV":
 				add("ok", fmt.Sprintf(T("Dolby Vision profilo %d"), out.DVProfile), "")
 			default:
